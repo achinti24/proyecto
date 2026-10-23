@@ -4,8 +4,7 @@ Plataforma pública de eventos con temática de Halloween. El frontend es solo u
 
 | | |
 |---|---|
-| **Estudiante** | Achinti Morales Hernández (GitHub: `achinti24`) |
-| **Compañero de apoyo** | Johan Santiago Ramos |
+| **Equipo** | Achinti Morales Hernández (GitHub: `achinti24`) · Johan Santiago Ramos |
 | **URL pública (Vercel)** | [eventpass-halloween.vercel.app](https://eventpass-halloween.vercel.app) |
 | **Bot de Telegram** | [@EventPassHalloween_bot](https://t.me/EventPassHalloween_bot) |
 | **Formulario de administración (WF04)** | `{N8N_PUBLIC_URL}/form/b595dc49-1160-42fc-a883-19427b4d7037` |
