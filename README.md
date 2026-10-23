@@ -108,6 +108,7 @@ Todas las llamadas son `POST` con cuerpo JSON a `{VITE_N8N_BASE_URL}/webhook/{re
   - error → `{ "ok": false, "error": "CODIGO", "message": "…" }` con el código HTTP correspondiente (400, 401, 403, 404, 409).
 - El header `ngrok-skip-browser-warning` evita la página intermedia de ngrok. CORS está habilitado en cada webhook (`allowedOrigins: *`).
 - La interfaz maneja **loading** (esqueletos, spinners), **éxito** (toasts) y **error** (cajas de error con reintento).
+- **Rendimiento:** WF05 guarda eventos e inscripciones 30 s en la memoria del workflow (`$getWorkflowStaticData`) y responde antes de registrar la consulta; el frontend guarda el último catálogo en `localStorage`, lo muestra al instante y lo refresca en segundo plano, filtra por categoría sin esperar y abre la conexión con n8n por adelantado (`preconnect`).
 
 ## 6. Endpoints
 

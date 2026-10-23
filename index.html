@@ -2,11 +2,14 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>EventPass · Noche de Brujas en San Gil</title>
     <meta name="description" content="EventPass: eventos de Halloween en San Gil. Reserva tu cupo, entra a la lista de espera y recibe avisos por Gmail y Telegram." />
     <meta name="theme-color" content="#221a2e" />
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+    <!-- Conexión anticipada con n8n: ahorra el saludo TLS en la primera consulta -->
+    <link rel="preconnect" href="%VITE_N8N_BASE_URL%" crossorigin />
+    <link rel="dns-prefetch" href="%VITE_N8N_BASE_URL%" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&display=swap" rel="stylesheet" />
@@ -23,20 +26,33 @@
         </svg>
         <span class="brand-name">EventPass</span>
       </a>
-      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false">Menú</button>
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
       <nav class="nav" id="nav" aria-label="Principal"></nav>
     </header>
 
     <main id="app" class="container" tabindex="-1"></main>
 
     <footer class="footer">
-      <p>EventPass · Eventos de Halloween en San Gil, Santander</p>
+      <div class="footer-inner">
+        <div>
+          <p class="footer-brand">EventPass</p>
+          <p>Eventos de Halloween en San Gil, Santander. Reservas con cupos, lista de espera y avisos por Gmail y Telegram.</p>
+        </div>
+        <nav aria-label="Pie de página">
+          <a href="#/">Eventos</a>
+          <a href="#/mis-inscripciones">Mis inscripciones</a>
+          <a href="#/perfil">Vincular Telegram</a>
+          <a href="#/recuperar">Recuperar mi cuenta</a>
+        </nav>
+      </div>
     </footer>
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
     <div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
 
-    <button id="chatFab" class="chat-fab" aria-label="Abrir el asistente Gaspar">
+    <button id="chatFab" class="chat-fab" aria-label="Abrir el asistente Gaspar" aria-expanded="false" aria-controls="chat">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C7.6 3 5 6.2 5 10.5V21l2.3-1.6L9.6 21 12 19.4 14.4 21l2.3-1.6L19 21V10.5C19 6.2 16.4 3 12 3Z" fill="currentColor"/><circle cx="9.5" cy="10.5" r="1.3" fill="var(--calabaza)"/><circle cx="14.5" cy="10.5" r="1.3" fill="var(--calabaza)"/></svg>
       <span>Pregúntale a Gaspar</span>
     </button>
@@ -48,10 +64,17 @@
         </button>
       </header>
       <div id="chatLog" class="chat-log"></div>
+      <div class="chat-sugs" id="chatSugs">
+        <button type="button">¿Qué eventos hay esta semana?</button>
+        <button type="button">¿Cómo funciona la lista de espera?</button>
+        <button type="button">¿Cómo vinculo Telegram?</button>
+      </div>
       <form id="chatForm" class="chat-form">
         <label for="chatInput" class="sr-only">Tu pregunta</label>
-        <input id="chatInput" autocomplete="off" maxlength="1000" placeholder="¿Quedan cupos para el desfile?" />
-        <button class="btn btn-primary" type="submit">Enviar</button>
+        <input id="chatInput" autocomplete="off" maxlength="1000" placeholder="Escribe tu pregunta" enterkeyhint="send" />
+        <button class="btn btn-primary" type="submit" aria-label="Enviar">
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </form>
     </section>
 
