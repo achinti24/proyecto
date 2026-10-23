@@ -62,6 +62,10 @@ export const api = {
 
   // WF01 — Usuarios
   registrar: (nombre, email, password) => call('usuarios', { accion: 'crear', nombre, email, password }),
+  verificarEmail: (email, codigo) => call('usuarios', { accion: 'verificar', email, codigo }),
+  reenviarCodigo: (email) => call('usuarios', { accion: 'reenviar', email }),
+  recuperar: (email) => call('usuarios', { accion: 'recuperar', email }),
+  restablecer: (email, codigo, password) => call('usuarios', { accion: 'restablecer', email, codigo, password }),
   perfil: () => call('usuarios', { accion: 'perfil' }, { auth: true }),
   actualizarPerfil: (cambios) => call('usuarios', { accion: 'actualizar', ...cambios }, { auth: true }),
   desactivar: () => call('usuarios', { accion: 'desactivar' }, { auth: true }),

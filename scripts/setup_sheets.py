@@ -23,6 +23,7 @@ ESTRUCTURA = {
     "EP01_Usuarios": {
         "Usuarios": ["usuario_id", "nombre", "email_normalizado", "password_hash", "password_salt", "estado", "fecha_registro", "fecha_actualizacion"],
         "Auditoria_Usuarios": ["auditoria_id", "usuario_id", "accion", "fecha", "resultado", "detalle"],
+        "Codigos_Email": ["codigo_id", "usuario_id", "email_normalizado", "tipo", "codigo_hash", "creado_en", "expira_en", "estado", "intentos", "usado_en"],
     },
     "EP02_Sesiones": {
         "Sesiones": ["session_id", "usuario_id", "session_token", "creada_en", "expira_en", "estado", "cerrada_en", "ultima_validacion"],

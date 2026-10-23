@@ -235,12 +235,140 @@ function viewLogin() {
       <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
       <div class="field"><label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="current-password" required></div>
       <button class="btn btn-primary btn-block" id="ok">Iniciar sesión</button>
+      <p class="hint" style="text-align:center"><a href="#/recuperar">¿Olvidaste tu contraseña?</a></p>
       <p class="hint" style="text-align:center">¿No tienes cuenta? <a href="#/registro">Regístrate</a></p>
     </form></div>`;
   document.getElementById('f').addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const pw = document.getElementById('pw').value;
     try {
-      await withLoading(document.getElementById('ok'), () => doLogin(document.getElementById('email').value, document.getElementById('pw').value));
+      await withLoading(document.getElementById('ok'), () => doLogin(email, pw));
+    } catch (err) {
+      if (err.code === 'CUENTA_NO_VERIFICADA') return irAVerificar(email, pw, err.message);
+      toast(err.message, 'err');
+    }
+  });
+}
+
+// ---------- verificación de email y recuperación de cuenta ----------
+// Credenciales del registro en memoria (nunca en storage) para entrar solo al verificar
+let pendiente = null;
+
+function irAVerificar(email, password, aviso) {
+  pendiente = { email, password };
+  try { sessionStorage.setItem('ep_verificar', email); } catch { /* sin storage */ }
+  if (aviso) toast(aviso, 'err');
+  location.hash = '#/verificar';
+}
+
+// Botón "Reenviar código" con espera de 60 s entre envíos
+function botonReenviar(btn, enviar) {
+  let timer;
+  const esperar = (s) => {
+    clearInterval(timer);
+    btn.disabled = true;
+    const tick = () => {
+      btn.textContent = s > 0 ? `Reenviar en ${s}s` : 'Reenviar código';
+      if (s-- <= 0) { clearInterval(timer); btn.disabled = false; }
+    };
+    tick(); timer = setInterval(tick, 1000);
+  };
+  btn.addEventListener('click', async () => {
+    try {
+      const r = await withLoading(btn, enviar);
+      toast(r.message);
+      esperar(60);
+    } catch (err) {
+      const s = Number((err.message.match(/(\d+) segundos/) || [])[1]);
+      toast(err.message, 'err');
+      if (s) esperar(s);
+    }
+  });
+  return esperar;
+}
+
+const campoCodigo = `<div class="field"><label for="codigo">Código de 6 dígitos</label>
+  <input id="codigo" inputmode="numeric" autocomplete="one-time-code" pattern="\\d{6}" maxlength="6" required placeholder="123456" style="letter-spacing:.4em;font-size:1.3rem;text-align:center"></div>`;
+
+function viewVerificar() {
+  let email = pendiente?.email || '';
+  try { email = email || sessionStorage.getItem('ep_verificar') || ''; } catch { /* sin storage */ }
+  app.innerHTML = `<div class="auth-wrap card panel">
+    <h1>Verifica tu email</h1><p class="sub">Te enviamos un código de 6 dígitos a tu correo. Vence en 15 minutos.</p>
+    <form class="form" id="f">
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" value="${esc(email)}" required></div>
+      ${campoCodigo}
+      <button class="btn btn-primary btn-block" id="ok">Verificar cuenta 🎃</button>
+      <button type="button" class="btn btn-ghost btn-block" id="reenviar">Reenviar código</button>
+      <p class="hint" style="text-align:center">¿No llega? Revisa la carpeta de spam.</p>
+    </form></div>`;
+  const leerEmail = () => document.getElementById('email').value.trim();
+  const esperar = botonReenviar(document.getElementById('reenviar'), () => api.reenviarCodigo(leerEmail()));
+  if (pendiente) esperar(60);
+  document.getElementById('f').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const correo = leerEmail();
+    try {
+      await withLoading(document.getElementById('ok'), async () => {
+        const r = await api.verificarEmail(correo, document.getElementById('codigo').value);
+        toast(r.message);
+        try { sessionStorage.removeItem('ep_verificar'); } catch { /* sin storage */ }
+        const cred = pendiente?.email === correo ? pendiente : null;
+        pendiente = null;
+        if (cred) await doLogin(cred.email, cred.password);
+        else location.hash = '#/login';
+      });
+    } catch (err) {
+      if (err.code === 'YA_VERIFICADA') { pendiente = null; location.hash = '#/login'; }
+      toast(err.message, 'err');
+    }
+  });
+}
+
+function viewRecuperar() {
+  app.innerHTML = `<div class="auth-wrap card panel">
+    <h1>Recuperar cuenta</h1><p class="sub">Te enviaremos un código para crear una contraseña nueva</p>
+    <form class="form" id="f1">
+      <div class="field"><label for="email">Email de tu cuenta</label><input id="email" type="email" autocomplete="email" required></div>
+      <button class="btn btn-primary btn-block" id="ok1">Enviarme el código</button>
+      <p class="hint" style="text-align:center"><a href="#/login">Volver a entrar</a></p>
+    </form>
+    <form class="form hidden" id="f2">
+      ${campoCodigo}
+      <div class="field"><label for="pw">Nueva contraseña</label><input id="pw" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></div>
+      <div class="field"><label for="pw2">Repite la contraseña</label><input id="pw2" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+        <p class="hint">Al cambiarla se cerrarán todas tus sesiones abiertas.</p></div>
+      <button class="btn btn-primary btn-block" id="ok2">Cambiar contraseña</button>
+      <button type="button" class="btn btn-ghost btn-block" id="reenviar">Reenviar código</button>
+    </form></div>`;
+  const f1 = document.getElementById('f1');
+  const f2 = document.getElementById('f2');
+  const email = () => document.getElementById('email').value.trim();
+  const esperar = botonReenviar(document.getElementById('reenviar'), () => api.recuperar(email()));
+
+  f1.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try {
+      const r = await withLoading(document.getElementById('ok1'), () => api.recuperar(email()));
+      toast(r.message);
+      document.getElementById('email').readOnly = true;
+      f1.querySelector('button').classList.add('hidden');
+      f2.classList.remove('hidden');
+      document.getElementById('codigo').focus();
+      esperar(60);
+    } catch (err) { toast(err.message, 'err'); }
+  });
+  f2.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const pw = document.getElementById('pw').value;
+    if (pw !== document.getElementById('pw2').value) return toast('Las contraseñas no coinciden', 'err');
+    try {
+      const r = await withLoading(document.getElementById('ok2'), () => api.restablecer(email(), document.getElementById('codigo').value, pw));
+      session.clear();
+      renderNav();
+      toast(r.message);
+      location.hash = '#/login';
     } catch (err) { toast(err.message, 'err'); }
   });
 }
@@ -272,12 +400,13 @@ function viewRegistro() {
     const email = document.getElementById('email').value.trim();
     const pw = document.getElementById('pw').value;
     try {
-      await withLoading(document.getElementById('ok'), async () => {
-        await api.registrar(nombre, email, pw);
-        toast('Cuenta creada');
-        await doLogin(email, pw);
-      });
-    } catch (err) { toast(err.message, 'err'); }
+      const r = await withLoading(document.getElementById('ok'), () => api.registrar(nombre, email, pw));
+      toast(r.message);
+      irAVerificar(email, pw);
+    } catch (err) {
+      if (err.code === 'PENDIENTE_VERIFICACION') return irAVerificar(email, pw, err.message);
+      toast(err.message, 'err');
+    }
   });
 }
 
@@ -453,6 +582,8 @@ function router() {
     case 'evento': return viewEvento(decodeURIComponent(param || ''));
     case 'login': return session.token ? (location.hash = '#/') : viewLogin();
     case 'registro': return session.token ? (location.hash = '#/') : viewRegistro();
+    case 'verificar': return session.token ? (location.hash = '#/') : viewVerificar();
+    case 'recuperar': return viewRecuperar();
     case 'perfil': return viewPerfil();
     case 'mis-inscripciones': return viewMisInscripciones();
     default: app.innerHTML = '<div class="empty"><div class="big">👻</div><p>Esta página se desvaneció.</p><a class="btn" href="#/">Volver</a></div>';

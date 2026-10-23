@@ -4,7 +4,7 @@ Plataforma pública de eventos con temática de Halloween. El frontend es solo u
 
 | | |
 |---|---|
-| **Estudiante** | _[Nombre completo]_ (GitHub: `achinti24`) |
+| **Estudiante** | Achinti Morales Hernández (GitHub: `achinti24`) |
 | **URL pública (Vercel)** | https://eventpass-halloween.vercel.app |
 | **Bot de Telegram** | [@EventPassHalloween_bot](https://t.me/EventPassHalloween_bot) |
 | **Formulario de administración (WF04)** | `{N8N_PUBLIC_URL}/form/b595dc49-1160-42fc-a883-19427b4d7037` |
@@ -16,7 +16,7 @@ Plataforma pública de eventos con temática de Halloween. El frontend es solo u
 EventPass permite:
 
 - consultar públicamente el catálogo de eventos (listado, detalle, filtro por categoría y disponibilidad);
-- registrarse, iniciar y cerrar sesión, consultar y actualizar el perfil, y desactivar la cuenta;
+- registrarse verificando el email con un código, iniciar y cerrar sesión, recuperar la cuenta si se olvida la contraseña, consultar y actualizar el perfil, y desactivar la cuenta;
 - vincular una cuenta de Telegram con un código temporal de un solo uso;
 - inscribirse a eventos con control de cupos y **lista de espera** automática;
 - editar y cancelar inscripciones;
@@ -82,7 +82,7 @@ Aplicación pública en Vercel (Vite + JS)
 
 | Workflow | Archivo | Trigger | Google Sheets |
 |---|---|---|---|
-| WF01 Usuarios CRUD | `n8n/WF01_usuarios_crud.json` | Webhook `POST /webhook/usuarios` | EP01_Usuarios (`Usuarios`, `Auditoria_Usuarios`) |
+| WF01 Usuarios CRUD | `n8n/WF01_usuarios_crud.json` | Webhook `POST /webhook/usuarios` | EP01_Usuarios (`Usuarios`, `Auditoria_Usuarios`, `Codigos_Email`) |
 | WF02 Autenticación y sesiones | `n8n/WF02_auth_sesiones.json` | Webhook `POST /webhook/auth` | EP02_Sesiones (`Sesiones`) |
 | WF03 Vinculación Telegram | `n8n/WF03_vinculacion_telegram.json` | Webhook `POST /webhook/telegram` + **Telegram Trigger** | EP03_Telegram (`Codigos_Vinculacion`, `Vinculaciones`) |
 | WF04 Eventos CRUD | `n8n/WF04_eventos_crud.json` | **n8n Form Trigger** | EP04_Eventos (`Eventos`, `Auditoria_Eventos`) |
@@ -114,6 +114,10 @@ Todas las llamadas son `POST` con cuerpo JSON a `{VITE_N8N_BASE_URL}/webhook/{re
 | Endpoint | `accion` | Auth | Cuerpo |
 |---|---|---|---|
 | `/webhook/usuarios` | `crear` | — | `nombre`, `email`, `password` |
+| | `verificar` | — | `email`, `codigo` |
+| | `reenviar` | — | `email` |
+| | `recuperar` | — | `email` |
+| | `restablecer` | — | `email`, `codigo`, `password` |
 | | `perfil` | Bearer | — |
 | | `actualizar` | Bearer | `nombre?`, `password?` |
 | | `desactivar` | Bearer | — |
@@ -136,7 +140,8 @@ Todas las llamadas son `POST` con cuerpo JSON a `{VITE_N8N_BASE_URL}/webhook/{re
 
 | Entidad | Estados |
 |---|---|
-| Usuario | `ACTIVO`, `INACTIVO` |
+| Usuario | `PENDIENTE` (email sin verificar), `ACTIVO`, `INACTIVO` |
+| Código de email | `PENDIENTE`, `USADO`, `EXPIRADO`, `CANCELADO` (tipos `VERIFICACION`, `RECUPERACION`) |
 | Sesión | `ACTIVA`, `CERRADA`, `EXPIRADA` |
 | Código de vinculación | `PENDIENTE`, `USADO`, `EXPIRADO`, `CANCELADO` |
 | Vinculación Telegram | `ACTIVA`, `INACTIVA` |
@@ -156,6 +161,14 @@ Todas las llamadas son `POST` con cuerpo JSON a `{VITE_N8N_BASE_URL}/webhook/{re
 En WF01 (nodo *Hash y salt*) se genera un salt aleatorio de 16 bytes (`crypto.randomBytes`) y se deriva el hash con **PBKDF2-SHA512, 100 000 iteraciones, 64 bytes**. En la hoja solo se guardan `password_hash` y `password_salt` (hex), nunca la contraseña.
 
 En el login (WF02, nodo *Verificar credenciales*) se recalcula el hash con el salt guardado y se compara con `crypto.timingSafeEqual`, para evitar ataques de tiempo. Ante email inexistente o contraseña incorrecta la respuesta es idéntica (`CREDENCIALES_INVALIDAS`), así no se revela qué emails existen.
+
+### Verificación de email y recuperación de cuenta
+
+- Al registrarse, la cuenta nace `PENDIENTE` y WF01 envía (vía WF09) un **código de 6 dígitos** al correo. Con `verificar` la cuenta pasa a `ACTIVO` y llega un correo de bienvenida. Mientras está pendiente, el login responde `403 CUENTA_NO_VERIFICADA`.
+- Con `recuperar` se envía un código al correo (y a Telegram si está vinculado); con `restablecer` se cambia la contraseña, se cierran **todas las sesiones abiertas** y se avisa al usuario.
+- Los códigos se generan con `crypto.randomInt`, se guardan en `Codigos_Email` **solo como hash** SHA-256 (con el `codigo_id` como sal), vencen a los **15 minutos**, sirven **una sola vez**, admiten **5 intentos** y se pueden pedir de nuevo cada **60 segundos**. Al pedir uno nuevo, los anteriores pasan a `CANCELADO`.
+- `recuperar` y `reenviar` responden lo mismo exista o no el email, para no revelar qué cuentas existen.
+- En la hoja `Notificaciones` se registra "código enviado", nunca el código.
 
 ## 9. Manejo de sesiones
 
@@ -191,7 +204,9 @@ Entrada: `usuario_id`, `tipo`, `titulo`, `mensaje`, `evento_id`, `inscripcion_id
 3. Envía por **Gmail** (correo HTML con estética de Halloween) y por **Telegram**. Cada nodo tiene `onError: continueRegularOutput`, así que la falla de un canal no oculta el resultado del otro.
 4. Registra en `Notificaciones` el resultado **independiente** de cada canal: `gmail_estado/gmail_error` y `telegram_estado/telegram_error` (`ENVIADO`, `ERROR` o `NO_APLICA`).
 
-Lo usan WF04 (cambios en eventos), WF06 (confirmación, lista de espera, cancelación), WF07 (reasignación) y WF08 (recordatorios).
+Lo usan WF01 (códigos de verificación y recuperación, bienvenida, aviso de contraseña cambiada), WF04 (cambios en eventos), WF06 (confirmación, lista de espera, cancelación), WF07 (reasignación) y WF08 (recordatorios).
+
+La entrada opcional `mensaje_registro` permite guardar en `Notificaciones` un texto distinto al enviado (se usa para no guardar los códigos).
 
 ## 13. Asistente IA (WF10)
 
