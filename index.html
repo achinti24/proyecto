@@ -3,43 +3,54 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EventPass · Noche de Brujas</title>
-    <meta name="description" content="EventPass: catálogo de eventos de Halloween, inscripciones, lista de espera y notificaciones por Gmail y Telegram." />
+    <title>EventPass · Noche de Brujas en San Gil</title>
+    <meta name="description" content="EventPass: eventos de Halloween en San Gil. Reserva tu cupo, entra a la lista de espera y recibe avisos por Gmail y Telegram." />
+    <meta name="theme-color" content="#221a2e" />
     <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div class="fog" aria-hidden="true"></div>
-    <div class="bats" aria-hidden="true">
-      <span class="bat b1">🦇</span><span class="bat b2">🦇</span><span class="bat b3">🦇</span>
-    </div>
+    <a class="skip" href="#app">Saltar al contenido</a>
 
     <header class="topbar">
-      <a href="#/" class="brand"><span class="brand-icon">🎃</span><span class="brand-name">EventPass</span></a>
-      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">☰</button>
-      <nav class="nav" id="nav"></nav>
+      <a href="#/" class="brand" aria-label="EventPass, inicio">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M16 7c-1-2.5 0-4.5 2.5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M16 8c-8 0-13 4.5-13 11s5 11 13 11 13-4.5 13-11S24 8 16 8Z" fill="currentColor"/>
+          <path d="M9.5 16.5l3 2.5-3 1zM22.5 16.5l-3 2.5 3 1zM10 24c3 2 9 2 12 0" fill="none" stroke="var(--noche)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-name">EventPass</span>
+      </a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false">Menú</button>
+      <nav class="nav" id="nav" aria-label="Principal"></nav>
     </header>
 
-    <main id="app" class="container"></main>
+    <main id="app" class="container" tabindex="-1"></main>
 
     <footer class="footer">
-      <p>🕸️ EventPass · Noche de Brujas — toda la lógica vive en n8n 🕸️</p>
+      <p>EventPass · Eventos de Halloween en San Gil, Santander</p>
     </footer>
 
     <div id="toasts" class="toasts" aria-live="polite"></div>
     <div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
 
-    <button id="chatFab" class="chat-fab" aria-label="Abrir asistente">👻</button>
+    <button id="chatFab" class="chat-fab" aria-label="Abrir el asistente Gaspar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C7.6 3 5 6.2 5 10.5V21l2.3-1.6L9.6 21 12 19.4 14.4 21l2.3-1.6L19 21V10.5C19 6.2 16.4 3 12 3Z" fill="currentColor"/><circle cx="9.5" cy="10.5" r="1.3" fill="var(--calabaza)"/><circle cx="14.5" cy="10.5" r="1.3" fill="var(--calabaza)"/></svg>
+      <span>Pregúntale a Gaspar</span>
+    </button>
     <section id="chat" class="chat hidden" aria-label="Asistente EventPass">
       <header class="chat-head">
-        <div><strong>Gaspar</strong><small>el fantasma que ayuda en EventPass</small></div>
-        <button id="chatClose" class="icon-btn" aria-label="Cerrar">✕</button>
+        <div><strong>Gaspar</strong><small>Responde sobre eventos, cupos y Telegram</small></div>
+        <button id="chatClose" class="icon-btn" aria-label="Cerrar el asistente">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
       </header>
       <div id="chatLog" class="chat-log"></div>
       <form id="chatForm" class="chat-form">
-        <input id="chatInput" autocomplete="off" maxlength="1000" placeholder="Pregunta por eventos, cupos, Telegram…" />
+        <label for="chatInput" class="sr-only">Tu pregunta</label>
+        <input id="chatInput" autocomplete="off" maxlength="1000" placeholder="¿Quedan cupos para el desfile?" />
         <button class="btn btn-primary" type="submit">Enviar</button>
       </form>
     </section>

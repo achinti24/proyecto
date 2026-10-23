@@ -68,7 +68,7 @@ Aplicación pública en Vercel (Vite + JS)
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | Vite 6, JavaScript (ES modules) sin framework, CSS propio, fuentes Creepster + Nunito |
+| Frontend | Vite 6, JavaScript (ES modules) sin framework, CSS propio, fuente Bricolage Grotesque, iconos SVG |
 | Hosting | Vercel |
 | Automatización | n8n 2.43 (Docker), túnel ngrok |
 | Persistencia | Google Sheets (OAuth2) |

@@ -269,6 +269,7 @@
       "name": "Registrar consulta",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
+      "executeOnce": true,
       "position": [
         1980,
         400
@@ -352,14 +353,14 @@
             }
           ],
           "value": {
-            "categoria": "={{ $json.log.categoria }}",
-            "consulta_id": "={{ $json.log.consulta_id }}",
-            "evento_id": "={{ $json.log.evento_id }}",
-            "fecha": "={{ $json.log.fecha }}",
-            "resultado_count": "={{ $json.log.resultado_count }}",
-            "status_http": "={{ $json.log.status_http }}",
-            "tipo": "={{ $json.log.tipo }}",
-            "visitor_id": "={{ $json.log.visitor_id }}"
+            "categoria": "={{ $('Calcular catalogo').first().json.log.categoria }}",
+            "consulta_id": "={{ $('Calcular catalogo').first().json.log.consulta_id }}",
+            "evento_id": "={{ $('Calcular catalogo').first().json.log.evento_id }}",
+            "fecha": "={{ $('Calcular catalogo').first().json.log.fecha }}",
+            "resultado_count": "={{ $('Calcular catalogo').first().json.log.resultado_count }}",
+            "status_http": "={{ $('Calcular catalogo').first().json.log.status_http }}",
+            "tipo": "={{ $('Calcular catalogo').first().json.log.tipo }}",
+            "visitor_id": "={{ $('Calcular catalogo').first().json.log.visitor_id }}"
           }
         },
         "documentId": {
@@ -500,18 +501,18 @@
       "main": [
         [
           {
-            "node": "Registrar consulta",
+            "node": "Responder",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Registrar consulta": {
+    "Responder": {
       "main": [
         [
           {
-            "node": "Responder",
+            "node": "Registrar consulta",
             "type": "main",
             "index": 0
           }
@@ -531,5 +532,5 @@
   "tags": [],
   "id": "gDJi2c9EhJd1WlLk",
   "active": true,
-  "versionId": "ec170408-db78-4289-9ecd-be5f654e1c6f"
+  "versionId": "40fcde7b-f04b-43eb-a8b0-32fd95bc767b"
 }
