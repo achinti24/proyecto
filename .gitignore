@@ -7,3 +7,4 @@ n8n/_raw/
 logs/
 secretos*.env
 *.tar.gz
+__pycache__/
