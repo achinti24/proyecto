@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+.vercel/
+n8n/_raw/
+logs/
+secretos*.env
+*.tar.gz

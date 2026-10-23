@@ -1,0 +1,1325 @@
+{
+  "name": "WF06 - Inscripciones CRUD",
+  "nodes": [
+    {
+      "id": "0af9684d-9f58-4b02-936b-4b2f0932dca4",
+      "name": "Webhook",
+      "webhookId": "10381ee0-750c-42d7-a6dd-14427e9c09da",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "path": "inscripciones",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "8357973e-3f72-4692-b129-5e947055cc3d",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8c0d2e5a-ccdd-49e9-9b3a-c1f8bb3a6ceb",
+              "name": "EP01_ID",
+              "type": "string",
+              "value": "11dCfIDjGIaufX9pmoOg6bui9GdFHFtKYDlrzyfZpFWE"
+            },
+            {
+              "id": "0674ec5c-5112-4ec6-a804-9ec798ab8274",
+              "name": "EP02_ID",
+              "type": "string",
+              "value": "1rR-z5p1xgdW13wasuu5bE6PpHSyxNh_PqBmfbdZ27Ss"
+            },
+            {
+              "id": "9106287a-b3d1-4323-89ae-13f40e44d2b0",
+              "name": "EP03_ID",
+              "type": "string",
+              "value": "1K91E5e0lKOtZLCvt2MgDaRjuwKNYINTzV6-I8V4oAng"
+            },
+            {
+              "id": "a33637f0-f5e5-4cf5-9e4a-7b55e9d3440a",
+              "name": "EP04_ID",
+              "type": "string",
+              "value": "1PwDUZIeH2N6pcerkcqdlE5KjuQw6WCKzqY_mzDDHlzo"
+            },
+            {
+              "id": "b6f16f8b-d599-4dc3-be78-567b2fc9b445",
+              "name": "EP06_ID",
+              "type": "string",
+              "value": "1tInB7fCksUNHiRqxu7HJkAT9KXcBXhhx2j2ZXoQs6mA"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "b6add5fd-3c70-4863-a6a0-070646c85e93",
+      "name": "Validar entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const fail = (status, code, message) => [{ json: { error: { status, code, message } } }];\n\nconst { body = {}, headers = {} } = $input.first().json;\nconst accion = String(body.accion || '').trim();\nconst auth = headers.authorization || '';\nconst token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\nif (!['crear', 'listar', 'actualizar', 'cancelar'].includes(accion)) return fail(400, 'VALIDACION', 'Acción no válida');\nif (!token) return fail(401, 'SESION_INVALIDA', 'Sesión no válida');\n\nconst e = { accion, token };\nif (accion === 'crear') {\n  e.evento_id = String(body.evento_id || '').trim();\n  if (!e.evento_id) return fail(400, 'VALIDACION', 'Falta evento_id');\n}\nif (accion === 'crear' || accion === 'actualizar') {\n  const na = body.nombre_acreditacion === undefined || body.nombre_acreditacion === null ? null : String(body.nombre_acreditacion).trim();\n  const ob = body.observaciones === undefined || body.observaciones === null ? null : String(body.observaciones).trim();\n  if (na !== null && na.length > 80) return fail(400, 'VALIDACION', 'El nombre de acreditación admite máximo 80 caracteres');\n  if (ob !== null && ob.length > 200) return fail(400, 'VALIDACION', 'Las observaciones admiten máximo 200 caracteres');\n  e.nombre_acreditacion = na; e.observaciones = ob;\n}\nif (accion === 'actualizar' || accion === 'cancelar') {\n  e.inscripcion_id = String(body.inscripcion_id || '').trim();\n  if (!e.inscripcion_id) return fail(400, 'VALIDACION', 'Falta inscripcion_id');\n}\nif (accion === 'actualizar' && e.nombre_acreditacion === null && e.observaciones === null) return fail(400, 'VALIDACION', 'No hay nada que actualizar');\nreturn [{ json: e }];\n"
+      }
+    },
+    {
+      "id": "42fd6578-14ed-401b-8f0a-dbe6d0ce0659",
+      "name": "Entrada con error",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "0b6ec884-cde5-45a8-968f-9c248a0fd967",
+              "leftValue": "={{ !!$json.error }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "efad7ab7-468b-4e93-81d0-edac5c52d5e6",
+      "name": "Responder error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3300,
+        60
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": "={{ $json.error.status }}"
+        },
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: $json.error.code, message: $json.error.message } }}"
+      }
+    },
+    {
+      "id": "914230ca-d530-45e3-882f-ac192b4ece01",
+      "name": "Buscar sesion",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "alwaysOutputData": true,
+      "position": [
+        880,
+        400
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP02_ID }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "session_token",
+              "lookupValue": "={{ $json.token }}"
+            }
+          ]
+        },
+        "operation": "read",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sesiones"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "h7zkopuCqYl0Axip",
+          "name": "🎃 Google Sheets EventPass"
+        }
+      }
+    },
+    {
+      "id": "e5205d2e-2519-43b7-964b-49594287f102",
+      "name": "Validar sesion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const fail = (status, code, message) => [{ json: { error: { status, code, message } } }];\n\nconst entrada = $('Validar entrada').first().json;\nconst fila = $input.all().map(i => i.json).find(r => r.session_token === entrada.token);\nif (!fila || fila.estado !== 'ACTIVA') return fail(401, 'SESION_INVALIDA', 'Sesión no válida');\nif (new Date(fila.expira_en) <= new Date()) return fail(401, 'SESION_INVALIDA', 'La sesión expiró');\nreturn [{ json: { usuario_id: fila.usuario_id } }];\n"
+      }
+    },
+    {
+      "id": "4f88ac46-e52f-4814-b9c4-0da4a8d5ef02",
+      "name": "Sesion con error",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "3fc9c3d0-8127-44a3-b3f4-f4338b9ba952",
+              "leftValue": "={{ !!$json.error }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "da16934c-ebf2-4558-bbba-0dc516ea1e67",
+      "name": "Buscar usuario",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "alwaysOutputData": true,
+      "position": [
+        1540,
+        500
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP01_ID }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "usuario_id",
+              "lookupValue": "={{ $json.usuario_id }}"
+            }
+          ]
+        },
+        "operation": "read",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Usuarios"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "h7zkopuCqYl0Axip",
+          "name": "🎃 Google Sheets EventPass"
+        }
+      }
+    },
+    {
+      "id": "19c87a1b-1aba-48ba-86f9-049880364a4c",
+      "name": "Buscar vinculacion",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "alwaysOutputData": true,
+      "position": [
+        1760,
+        500
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP03_ID }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "usuario_id",
+              "lookupValue": "={{ $('Validar sesion').first().json.usuario_id }}"
+            }
+          ]
+        },
+        "operation": "read",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Vinculaciones"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "h7zkopuCqYl0Axip",
+          "name": "🎃 Google Sheets EventPass"
+        }
+      }
+    },
+    {
+      "id": "605f1c38-a976-460e-b4ab-7256f60d2814",
+      "name": "Leer eventos",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "position": [
+        1980,
+        500
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP04_ID }}"
+        },
+        "operation": "read",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Eventos"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "h7zkopuCqYl0Axip",
+          "name": "🎃 Google Sheets EventPass"
+        }
+      }
+    },
+    {
+      "id": "db50f77f-6f3b-41b7-9205-9d507181ab62",
+      "name": "Leer inscripciones",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "position": [
+        2200,
+        500
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP06_ID }}"
+        },
+        "operation": "read",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Inscripciones"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "h7zkopuCqYl0Axip",
+          "name": "🎃 Google Sheets EventPass"
+        }
+      }
+    },
+    {
+      "id": "486555f3-689c-4a0b-961e-97eaf6fd2aa8",
+      "name": "Decidir",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const fail = (status, code, message) => [{ json: { error: { status, code, message } } }];\n\nconst crypto = require('crypto');\nconst e = $('Validar entrada').first().json;\nconst uid = $('Validar sesion').first().json.usuario_id;\n\nconst usuario = $('Buscar usuario').all().map(i => i.json).find(r => r.usuario_id === uid);\nif (!usuario) return fail(404, 'NO_ENCONTRADO', 'Usuario no encontrado');\nif (usuario.estado !== 'ACTIVO') return fail(403, 'USUARIO_INACTIVO', 'La cuenta está inactiva');\n\nconst eventos = $('Leer eventos').all().map(i => i.json).filter(r => r.evento_id);\nconst todas = $('Leer inscripciones').all().map(i => i.json).filter(r => r.inscripcion_id);\nconst evById = {};\nfor (const ev of eventos) evById[ev.evento_id] = ev;\nconst ahora = new Date().toISOString();\n\nconst fila = (r, cambios = {}) => ({\n  inscripcion_id: r.inscripcion_id, usuario_id: r.usuario_id, evento_id: r.evento_id, estado: r.estado,\n  fecha_inscripcion: r.fecha_inscripcion, fecha_actualizacion: r.fecha_actualizacion,\n  nombre_acreditacion: r.nombre_acreditacion || '', observaciones: r.observaciones || '',\n  origen: r.origen || 'WEB', orden_espera: r.orden_espera === undefined ? '' : r.orden_espera, ...cambios\n});\nconst pub = (r) => {\n  const ev = evById[r.evento_id] || {};\n  return { ...fila(r), evento_nombre: ev.nombre || '', evento_categoria: ev.categoria || '', evento_fecha: ev.fecha || '',\n           evento_hora: ev.hora || '', evento_lugar: ev.lugar || '', evento_estado: ev.estado || '' };\n};\nconst aud = (r, accion, anterior, nuevo, detalle) => ({\n  auditoria_id: 'AUD-' + Date.now() + '-' + Math.floor(Math.random() * 1000),\n  inscripcion_id: r.inscripcion_id, usuario_id: uid, evento_id: r.evento_id, accion,\n  estado_anterior: anterior, estado_nuevo: nuevo, fecha: ahora, resultado: 'OK', detalle\n});\nconst notif = (tipo, titulo, mensaje, r) => ({\n  usuario_id: uid, tipo, titulo, mensaje, evento_id: r.evento_id, inscripcion_id: r.inscripcion_id,\n  clave_idempotencia: [tipo, uid, r.evento_id, r.inscripcion_id].join('|')\n});\nconst mias = todas.filter(r => r.usuario_id === uid);\nconst activa = (r) => r.estado === 'CONFIRMADA' || r.estado === 'LISTA_ESPERA';\n\nif (e.accion === 'listar') {\n  const data = mias.map(pub).sort((a, b) => String(b.fecha_inscripcion).localeCompare(String(a.fecha_inscripcion)));\n  return [{ json: { op: 'LISTAR', status: 200, respuesta: data, message: data.length + ' inscripciones' } }];\n}\n\nif (e.accion === 'crear') {\n  const vinc = $('Buscar vinculacion').all().map(i => i.json).find(r => r.usuario_id === uid && r.estado === 'ACTIVA');\n  if (!vinc) return fail(403, 'TELEGRAM_NO_VINCULADO', 'Debes vincular tu Telegram antes de inscribirte');\n  const ev = evById[e.evento_id];\n  if (!ev) return fail(404, 'NO_ENCONTRADO', 'El evento no existe');\n  if (ev.estado !== 'PUBLICADO') return fail(409, 'EVENTO_NO_DISPONIBLE', 'El evento no está disponible para inscripción');\n  const hora = String(ev.hora || '00:00').slice(0, 5);\n  const inicio = new Date(String(ev.fecha) + 'T' + hora + ':00-05:00');\n  if (!isNaN(inicio.getTime()) && inicio <= new Date()) return fail(409, 'EVENTO_NO_DISPONIBLE', 'El evento ya comenzó o finalizó');\n  const previa = mias.find(r => r.evento_id === e.evento_id && activa(r));\n  if (previa) return fail(409, 'YA_INSCRITO', 'Ya tienes una inscripción activa en este evento');\n\n  const delEvento = todas.filter(r => r.evento_id === e.evento_id);\n  const confirmadas = delEvento.filter(r => r.estado === 'CONFIRMADA').length;\n  const capacidad = Number(ev.capacidad) || 0;\n  const hayCupo = confirmadas < capacidad;\n  let orden = '';\n  if (!hayCupo) {\n    const ordenes = delEvento.filter(r => r.estado === 'LISTA_ESPERA').map(r => Number(r.orden_espera) || 0);\n    orden = (ordenes.length ? Math.max(...ordenes) : 0) + 1;\n  }\n  const nueva = {\n    inscripcion_id: 'INS-' + crypto.randomUUID(), usuario_id: uid, evento_id: e.evento_id,\n    estado: hayCupo ? 'CONFIRMADA' : 'LISTA_ESPERA', fecha_inscripcion: ahora, fecha_actualizacion: ahora,\n    nombre_acreditacion: e.nombre_acreditacion || usuario.nombre, observaciones: e.observaciones || '',\n    origen: 'WEB', orden_espera: orden\n  };\n  const cuando = ev.fecha + ' ' + hora + ' en ' + ev.lugar;\n  const n = hayCupo\n    ? notif('INSCRIPCION_CONFIRMADA', 'Inscripción confirmada', 'Tu inscripción a \"' + ev.nombre + '\" quedó CONFIRMADA. Te esperamos el ' + cuando + '.', nueva)\n    : notif('LISTA_ESPERA', 'Estás en lista de espera', 'El evento \"' + ev.nombre + '\" está lleno. Quedaste en LISTA DE ESPERA (posición ' + orden + '). Te avisaremos si se libera un cupo.', nueva);\n  return [{ json: {\n    op: 'CREAR', status: 201, write: nueva, respuesta: pub(nueva),\n    message: hayCupo ? 'Inscripción confirmada' : 'Evento lleno: quedaste en lista de espera',\n    auditoria: aud(nueva, 'CREAR', '', nueva.estado, hayCupo ? 'Inscripción con cupo disponible' : 'Evento lleno, lista de espera #' + orden),\n    notif: n\n  } }];\n}\n\nconst objetivo = mias.find(r => r.inscripcion_id === e.inscripcion_id);\nif (!objetivo) return fail(404, 'NO_ENCONTRADO', 'Inscripción no encontrada');\n\nif (e.accion === 'actualizar') {\n  if (objetivo.estado === 'CANCELADA') return fail(409, 'INSCRIPCION_CANCELADA', 'No se puede modificar una inscripción cancelada');\n  const cambios = { fecha_actualizacion: ahora };\n  const campos = [];\n  if (e.nombre_acreditacion !== null) { cambios.nombre_acreditacion = e.nombre_acreditacion || usuario.nombre; campos.push('nombre_acreditacion'); }\n  if (e.observaciones !== null) { cambios.observaciones = e.observaciones; campos.push('observaciones'); }\n  const nueva = fila(objetivo, cambios);\n  return [{ json: {\n    op: 'ACTUALIZAR', status: 200, write: nueva, respuesta: pub(nueva), message: 'Inscripción actualizada',\n    auditoria: aud(nueva, 'ACTUALIZAR', objetivo.estado, nueva.estado, 'Campos: ' + campos.join(', ')), notif: null\n  } }];\n}\n\n// cancelar (idempotente: cancelar dos veces no genera cambios)\nif (objetivo.estado === 'CANCELADA') {\n  return [{ json: { op: 'NOOP', status: 200, respuesta: pub(objetivo), message: 'La inscripción ya estaba cancelada' } }];\n}\nconst ev = evById[objetivo.evento_id] || {};\nconst nueva = fila(objetivo, { estado: 'CANCELADA', fecha_actualizacion: ahora, orden_espera: '' });\nreturn [{ json: {\n  op: 'CANCELAR', status: 200, write: nueva, respuesta: pub(nueva), message: 'Inscripción cancelada',\n  auditoria: aud(nueva, 'CANCELAR', objetivo.estado, 'CANCELADA', objetivo.estado === 'CONFIRMADA' ? 'Se libera un cupo' : 'Sale de la lista de espera'),\n  notif: notif('INSCRIPCION_CANCELADA', 'Inscripción cancelada', 'Cancelaste tu inscripción a \"' + (ev.nombre || objetivo.evento_id) + '\".', nueva)\n} }];\n"
+      }
+    },
+    {
+      "id": "7072bb9c-1ebb-4c16-aaa8-843cd2f26036",
+      "name": "Decision con error",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e79c390f-2383-4014-ae3d-a54fe5a2db3e",
+              "leftValue": "={{ !!$json.error }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "438acb5a-77d5-420c-bd05-bf829d51bccb",
+      "name": "Sin escritura",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        600
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "53078ce3-ce8d-46e4-94dc-bd61ae9ff282",
+              "leftValue": "={{ ['LISTAR', 'NOOP'].includes($json.op) }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cf8c470e-eb9b-4c7f-85bb-31852d7a5ab6",
+      "name": "Responder OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        4200,
+        600
+      ],
+      "parameters": {
+        "options": {
+          "responseCode": "={{ $('Decidir').first().json.status }}"
+        },
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, data: $('Decidir').first().json.respuesta, message: $('Decidir').first().json.message } }}"
+      }
+    },
+    {
+      "id": "fc056c79-1802-4e44-a55f-81fece135660",
+      "name": "Es crear",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3080,
+        700
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c7b3e5b9-f3a7-4e71-8e8b-ca8e8d1b5e1e",
+              "leftValue": "={{ $json.op }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "CREAR"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "677b1f14-d222-4319-8613-06e31132c908",
+      "name": "Crear inscripcion",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3300,
+        640
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "inscripcion_id",
+              "displayName": "inscripcion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "usuario_id",
+              "displayName": "usuario_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evento_id",
+              "displayName": "evento_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_inscripcion",
+              "displayName": "fecha_inscripcion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_actualizacion",
+              "displayName": "fecha_actualizacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nombre_acreditacion",
+              "displayName": "nombre_acreditacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "origen",
+              "displayName": "origen",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "orden_espera",
+              "displayName": "orden_espera",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "value": {
+            "estado": "={{ $('Decidir').first().json.write.estado }}",
+            "evento_id": "={{ $('Decidir').first().json.write.evento_id }}",
+            "fecha_actualizacion": "={{ $('Decidir').first().json.write.fecha_actualizacion }}",
+            "fecha_inscripcion": "={{ $('Decidir').first().json.write.fecha_inscripcion }}",
+            "inscripcion_id": "={{ $('Decidir').first().json.write.inscripcion_id }}",
+            "nombre_acreditacion": "={{ $('Decidir').first().json.write.nombre_acreditacion }}",
+            "observaciones": "={{ $('Decidir').first().json.write.observaciones }}",
+            "orden_espera": "={{ $('Decidir').first().json.write.orden_espera }}",
+            "origen": "={{ $('Decidir').first().json.write.origen }}",
+            "usuario_id": "={{ $('Decidir').first().json.write.usuario_id }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP06_ID }}"
+        },
+        "operation": "append",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Inscripciones"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "h7zkopuCqYl0Axip",
+          "name": "🎃 Google Sheets EventPass"
+        }
+      }
+    },
+    {
+      "id": "6c293bc3-c172-4f42-90ff-43d396bcd918",
+      "name": "Actualizar inscripcion",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3300,
+        800
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "inscripcion_id"
+          ],
+          "schema": [
+            {
+              "id": "inscripcion_id",
+              "displayName": "inscripcion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "usuario_id",
+              "displayName": "usuario_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evento_id",
+              "displayName": "evento_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_inscripcion",
+              "displayName": "fecha_inscripcion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_actualizacion",
+              "displayName": "fecha_actualizacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "nombre_acreditacion",
+              "displayName": "nombre_acreditacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "observaciones",
+              "displayName": "observaciones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "origen",
+              "displayName": "origen",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "orden_espera",
+              "displayName": "orden_espera",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "value": {
+            "estado": "={{ $('Decidir').first().json.write.estado }}",
+            "evento_id": "={{ $('Decidir').first().json.write.evento_id }}",
+            "fecha_actualizacion": "={{ $('Decidir').first().json.write.fecha_actualizacion }}",
+            "fecha_inscripcion": "={{ $('Decidir').first().json.write.fecha_inscripcion }}",
+            "inscripcion_id": "={{ $('Decidir').first().json.write.inscripcion_id }}",
+            "nombre_acreditacion": "={{ $('Decidir').first().json.write.nombre_acreditacion }}",
+            "observaciones": "={{ $('Decidir').first().json.write.observaciones }}",
+            "orden_espera": "={{ $('Decidir').first().json.write.orden_espera }}",
+            "origen": "={{ $('Decidir').first().json.write.origen }}",
+            "usuario_id": "={{ $('Decidir').first().json.write.usuario_id }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP06_ID }}"
+        },
+        "operation": "update",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Inscripciones"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "h7zkopuCqYl0Axip",
+          "name": "🎃 Google Sheets EventPass"
+        }
+      }
+    },
+    {
+      "id": "6feb4096-60ec-4e67-8e03-473c2b21efe9",
+      "name": "Auditoria inscripcion",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3520,
+        700
+      ],
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "auditoria_id",
+              "displayName": "auditoria_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inscripcion_id",
+              "displayName": "inscripcion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "usuario_id",
+              "displayName": "usuario_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evento_id",
+              "displayName": "evento_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_anterior",
+              "displayName": "estado_anterior",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado_nuevo",
+              "displayName": "estado_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resultado",
+              "displayName": "resultado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "detalle",
+              "displayName": "detalle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "value": {
+            "accion": "={{ $('Decidir').first().json.auditoria.accion }}",
+            "auditoria_id": "={{ $('Decidir').first().json.auditoria.auditoria_id }}",
+            "detalle": "={{ $('Decidir').first().json.auditoria.detalle }}",
+            "estado_anterior": "={{ $('Decidir').first().json.auditoria.estado_anterior }}",
+            "estado_nuevo": "={{ $('Decidir').first().json.auditoria.estado_nuevo }}",
+            "evento_id": "={{ $('Decidir').first().json.auditoria.evento_id }}",
+            "fecha": "={{ $('Decidir').first().json.auditoria.fecha }}",
+            "inscripcion_id": "={{ $('Decidir').first().json.auditoria.inscripcion_id }}",
+            "resultado": "={{ $('Decidir').first().json.auditoria.resultado }}",
+            "usuario_id": "={{ $('Decidir').first().json.auditoria.usuario_id }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP06_ID }}"
+        },
+        "operation": "append",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Auditoria_Inscripciones"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "h7zkopuCqYl0Axip",
+          "name": "🎃 Google Sheets EventPass"
+        }
+      }
+    },
+    {
+      "id": "08f60588-1280-4b01-b947-3843d6187503",
+      "name": "Hay notificacion",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3740,
+        700
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cabe3bfd-24ee-4749-8223-43c6edf8a9b3",
+              "leftValue": "={{ !!$('Decidir').first().json.notif }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "761bfc1f-ee49-42d3-bc69-dec9fb70df92",
+      "name": "Notificar",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "onError": "continueRegularOutput",
+      "position": [
+        3960,
+        640
+      ],
+      "parameters": {
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nDQbWOBIKSxuv2Wc"
+        },
+        "workflowInputs": {
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true,
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "usuario_id",
+              "id": "usuario_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "tipo",
+              "id": "tipo",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "titulo",
+              "id": "titulo",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "mensaje",
+              "id": "mensaje",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "evento_id",
+              "id": "evento_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "inscripcion_id",
+              "id": "inscripcion_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "clave_idempotencia",
+              "id": "clave_idempotencia",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "clave_idempotencia": "={{ $('Decidir').first().json.notif.clave_idempotencia }}",
+            "evento_id": "={{ $('Decidir').first().json.notif.evento_id }}",
+            "inscripcion_id": "={{ $('Decidir').first().json.notif.inscripcion_id }}",
+            "mensaje": "={{ $('Decidir').first().json.notif.mensaje }}",
+            "tipo": "={{ $('Decidir').first().json.notif.tipo }}",
+            "titulo": "={{ $('Decidir').first().json.notif.titulo }}",
+            "usuario_id": "={{ $('Decidir').first().json.notif.usuario_id }}"
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Validar entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar entrada": {
+      "main": [
+        [
+          {
+            "node": "Entrada con error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entrada con error": {
+      "main": [
+        [
+          {
+            "node": "Responder error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar sesion": {
+      "main": [
+        [
+          {
+            "node": "Validar sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar sesion": {
+      "main": [
+        [
+          {
+            "node": "Sesion con error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sesion con error": {
+      "main": [
+        [
+          {
+            "node": "Responder error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar usuario": {
+      "main": [
+        [
+          {
+            "node": "Buscar vinculacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar vinculacion": {
+      "main": [
+        [
+          {
+            "node": "Leer eventos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer eventos": {
+      "main": [
+        [
+          {
+            "node": "Leer inscripciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer inscripciones": {
+      "main": [
+        [
+          {
+            "node": "Decidir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir": {
+      "main": [
+        [
+          {
+            "node": "Decision con error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision con error": {
+      "main": [
+        [
+          {
+            "node": "Responder error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sin escritura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sin escritura": {
+      "main": [
+        [
+          {
+            "node": "Responder OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Es crear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es crear": {
+      "main": [
+        [
+          {
+            "node": "Crear inscripcion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Actualizar inscripcion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear inscripcion": {
+      "main": [
+        [
+          {
+            "node": "Auditoria inscripcion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar inscripcion": {
+      "main": [
+        [
+          {
+            "node": "Auditoria inscripcion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auditoria inscripcion": {
+      "main": [
+        [
+          {
+            "node": "Hay notificacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hay notificacion": {
+      "main": [
+        [
+          {
+            "node": "Notificar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar": {
+      "main": [
+        [
+          {
+            "node": "Responder OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "pinData": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "tags": [],
+  "id": "fwtOHkNFU2woBCXM",
+  "active": true,
+  "versionId": "466743df-eb9d-42d6-acb3-54f2dbaee286"
+}

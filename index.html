@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EventPass · Noche de Brujas</title>
+    <meta name="description" content="EventPass: catálogo de eventos de Halloween, inscripciones, lista de espera y notificaciones por Gmail y Telegram." />
+    <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="fog" aria-hidden="true"></div>
+    <div class="bats" aria-hidden="true">
+      <span class="bat b1">🦇</span><span class="bat b2">🦇</span><span class="bat b3">🦇</span>
+    </div>
+
+    <header class="topbar">
+      <a href="#/" class="brand"><span class="brand-icon">🎃</span><span class="brand-name">EventPass</span></a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">☰</button>
+      <nav class="nav" id="nav"></nav>
+    </header>
+
+    <main id="app" class="container"></main>
+
+    <footer class="footer">
+      <p>🕸️ EventPass · Noche de Brujas — toda la lógica vive en n8n 🕸️</p>
+    </footer>
+
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+    <div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
+
+    <button id="chatFab" class="chat-fab" aria-label="Abrir asistente">👻</button>
+    <section id="chat" class="chat hidden" aria-label="Asistente EventPass">
+      <header class="chat-head">
+        <div><strong>Gaspar</strong><small>el fantasma que ayuda en EventPass</small></div>
+        <button id="chatClose" class="icon-btn" aria-label="Cerrar">✕</button>
+      </header>
+      <div id="chatLog" class="chat-log"></div>
+      <form id="chatForm" class="chat-form">
+        <input id="chatInput" autocomplete="off" maxlength="1000" placeholder="Pregunta por eventos, cupos, Telegram…" />
+        <button class="btn btn-primary" type="submit">Enviar</button>
+      </form>
+    </section>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
