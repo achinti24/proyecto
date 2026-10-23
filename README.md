@@ -73,7 +73,7 @@ Aplicación pública en Vercel (Vite + JS)
 | Automatización | n8n 2.43 (Docker), túnel ngrok |
 | Persistencia | Google Sheets (OAuth2) |
 | Notificaciones | Gmail (OAuth2), Telegram Bot API |
-| IA | Google Gemini (`gemini-flash-latest`) con AI Agent de n8n |
+| IA | Google Gemini (`gemini-3.6-flash`) con AI Agent de n8n |
 | Seguridad | PBKDF2-SHA512 + salt, tokens de sesión aleatorios de 256 bits |
 
 ---

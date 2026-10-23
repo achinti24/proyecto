@@ -5,7 +5,7 @@
   - aplica la temática de Halloween (categorías, correos, bot, asistente)
 y exporta cada workflow a n8n/WFxx_*.json.
 
-Variables (en .env): N8N_URL, N8N_API_KEY, CRED_SHEETS, CRED_GMAIL, CRED_TELEGRAM, CRED_AI, AI_PROVIDER (gemini|openai|anthropic)
+Variables (en .env): N8N_URL, N8N_API_KEY, CRED_SHEETS, CRED_GMAIL, CRED_TELEGRAM, CRED_AI, AI_PROVIDER (gemini|openai|anthropic), AI_MODEL (solo gemini)
 Uso: python3 scripts/patch_workflows.py [--export-only]
 """
 import json
@@ -128,7 +128,7 @@ def ai_node(node):
     base = {"id": node["id"], "name": node["name"], "position": pos}
     if prov == "gemini":
         n = {**base, "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini", "typeVersion": 1,
-             "parameters": {"modelName": "models/gemini-flash-latest", "options": {"temperature": 0.3}}}
+             "parameters": {"modelName": "models/" + os.environ.get("AI_MODEL", "gemini-3.6-flash"), "options": {"temperature": 0.3}}}
         if cid: n["credentials"] = {"googlePalmApi": {"id": cid, "name": "🎃 Gemini EventPass"}}
     elif prov == "anthropic":
         n = {**base, "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic", "typeVersion": 1.3,

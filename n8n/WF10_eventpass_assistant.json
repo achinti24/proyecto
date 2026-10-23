@@ -239,7 +239,7 @@
         336
       ],
       "parameters": {
-        "modelName": "models/gemini-flash-latest",
+        "modelName": "models/gemini-3.6-flash",
         "options": {
           "temperature": 0.3
         }
@@ -742,5 +742,5 @@
   "tags": [],
   "id": "sISJiz327MjwZ9fQ",
   "active": true,
-  "versionId": "d0db1310-2d1b-40c8-9985-97b0d2d2203a"
+  "versionId": "1017d807-005a-422e-8747-42e20fecdd51"
 }
