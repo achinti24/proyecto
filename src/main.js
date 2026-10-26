@@ -91,6 +91,16 @@ const cache = {
   get() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null')?.data || null; } catch { return null; } },
   set(data) { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), data })); } catch { /* sin storage */ } },
   evento(id) { return this.get()?.find((e) => e.evento_id === id) || null; },
+  // Refleja al instante una inscripción confirmada (+1) o cancelada (-1) mientras llega el dato real
+  ajustarCupos(eventoId, cambio) {
+    const eventos = this.get();
+    const e = eventos?.find((x) => x.evento_id === eventoId);
+    if (!e) return;
+    e.inscritos_confirmados = Math.max(0, e.inscritos_confirmados + cambio);
+    e.cupos_disponibles = Math.max(0, e.capacidad - e.inscritos_confirmados);
+    e.lleno = e.cupos_disponibles === 0;
+    this.set(eventos);
+  },
 };
 // Una sola petición en vuelo: la portada y el arranque comparten la misma respuesta
 let catalogoEnVuelo = null;
@@ -386,6 +396,8 @@ function inscribir(e) {
         nombre_acreditacion: m.querySelector('#na').value.trim(), observaciones: m.querySelector('#ob').value.trim(),
       }));
       closeModal();
+      if (r.data.estado === 'CONFIRMADA') cache.ajustarCupos(e.evento_id, 1);
+      pedirCatalogo().catch(() => { /* la agenda lo reintenta al abrirse */ });
       toast(r.data.estado === 'CONFIRMADA' ? 'Cupo confirmado. Te llegó el aviso por Gmail y Telegram.' : `El evento está lleno: quedaste en la lista de espera (puesto ${r.data.orden_espera}).`);
       location.hash = '#/mis-inscripciones';
     } catch (err) {
@@ -738,7 +750,14 @@ async function viewMisInscripciones() {
 
   lista.querySelectorAll('[data-cancel]').forEach((b) => b.addEventListener('click', async () => {
     if (!await confirmar('¿Cancelar la inscripción?', 'Si tenías cupo confirmado, pasará a la siguiente persona de la lista de espera.', 'Cancelar inscripción', true)) return;
-    try { await api.cancelarInscripcion(b.dataset.cancel); toast('Cancelamos tu inscripción. Te avisamos por Gmail y Telegram.'); viewMisInscripciones(); } catch (err) { toast(err.message, 'err'); }
+    const inscripcion = data.find((x) => x.inscripcion_id === b.dataset.cancel);
+    try {
+      await api.cancelarInscripcion(b.dataset.cancel);
+      if (inscripcion?.estado === 'CONFIRMADA') cache.ajustarCupos(inscripcion.evento_id, -1);
+      pedirCatalogo().catch(() => { /* la agenda lo reintenta al abrirse */ });
+      toast('Cancelamos tu inscripción. Te avisamos por Gmail y Telegram.');
+      viewMisInscripciones();
+    } catch (err) { toast(err.message, 'err'); }
   }));
   lista.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
     const i = data.find((x) => x.inscripcion_id === b.dataset.edit);

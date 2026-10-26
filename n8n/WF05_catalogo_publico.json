@@ -262,13 +262,12 @@
       "name": "Calcular catalogo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "executeOnce": true,
       "position": [
         1760,
         400
       ],
       "parameters": {
-        "jsCode": "const entrada = $('Validar entrada').first().json;\nconst norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();\n\n// Eventos publicables (ya filtrados) e inscripciones CONFIRMADAS (ya filtradas)\nconst st = $getWorkflowStaticData('global');\nlet eventos, confirmadas;\nif ($('Leer cache').first().json.hit) {\n  ({ eventos, confirmadas } = st.catalogo);\n} else {\n  eventos = $('Filtrar publicados').all().map(i => i.json).filter(e => e.evento_id);\n  confirmadas = $input.all().map(i => i.json).filter(i => i.evento_id && i.estado === 'CONFIRMADA')\n    .map(i => ({ evento_id: i.evento_id, estado: i.estado }));\n  st.catalogo = { t: Date.now(), eventos, confirmadas };\n}\n\nconst ocupados = {};\nfor (const ins of confirmadas) ocupados[ins.evento_id] = (ocupados[ins.evento_id] || 0) + 1;\n\n// cupos_disponibles = capacidad - inscripciones CONFIRMADAS (nunca un valor manual)\nconst publico = (e) => {\n  const capacidad = Number(e.capacidad) || 0;\n  const inscritos = ocupados[e.evento_id] || 0;\n  const cupos = Math.max(capacidad - inscritos, 0);\n  return {\n    evento_id: e.evento_id, nombre: e.nombre, categoria: e.categoria, descripcion: e.descripcion,\n    fecha: e.fecha, hora: e.hora, lugar: e.lugar, capacidad, imagen_url: e.imagen_url || '',\n    organizador: e.organizador, estado: e.estado,\n    inscritos_confirmados: inscritos, cupos_disponibles: cupos, lleno: cupos === 0\n  };\n};\nconst orden = (a, b) => (a.fecha + ' ' + a.hora).localeCompare(b.fecha + ' ' + b.hora);\n\nlet status = 200, body, tipo, count;\n\nif (entrada.accion === 'listado' || entrada.accion === 'filtro') {\n  let lista = eventos;\n  if (entrada.accion === 'filtro') lista = eventos.filter(e => norm(e.categoria) === norm(entrada.categoria));\n  const data = lista.map(publico).sort(orden);\n  tipo = entrada.accion === 'listado' ? 'LISTADO' : 'FILTRO';\n  count = data.length;\n  body = { ok: true, data, message: data.length + ' eventos' };\n} else {\n  const evento = eventos.find(e => e.evento_id === entrada.evento_id);\n  tipo = entrada.accion === 'detalle' ? 'DETALLE' : 'DISPONIBILIDAD';\n  if (!evento) {\n    status = 404; count = 0;\n    body = { ok: false, error: 'NO_ENCONTRADO', message: 'El evento no existe o no está disponible' };\n  } else {\n    const e = publico(evento);\n    count = 1;\n    body = entrada.accion === 'detalle'\n      ? { ok: true, data: e, message: 'Evento encontrado' }\n      : { ok: true, data: { evento_id: e.evento_id, capacidad: e.capacidad, inscritos_confirmados: e.inscritos_confirmados, cupos_disponibles: e.cupos_disponibles, lleno: e.lleno }, message: 'Disponibilidad calculada' };\n  }\n}\n\nreturn [{ json: {\n  status, body,\n  log: {\n    consulta_id: 'CON-' + Date.now() + '-' + Math.floor(Math.random() * 10000),\n    fecha: new Date().toISOString(), tipo,\n    evento_id: entrada.evento_id || '', categoria: entrada.categoria || '',\n    resultado_count: count, visitor_id: entrada.visitor_id, status_http: status\n  }\n} }];\n"
+        "jsCode": "const entrada = $('Validar entrada').first().json;\nconst norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();\n\n// Eventos publicables (ya filtrados) e inscripciones CONFIRMADAS (ya filtradas)\nconst st = $getWorkflowStaticData('global');\nlet eventos;\nif ($('Leer cache').first().json.hit) {\n  eventos = st.eventos.lista;\n} else {\n  eventos = $('Filtrar publicados').all().map(i => i.json).filter(e => e.evento_id);\n  st.eventos = { t: Date.now(), lista: eventos };\n}\ndelete st.catalogo; // caché anterior, que también guardaba inscripciones\nconst confirmadas = $('Filtrar confirmadas').all().map(i => i.json).filter(i => i.evento_id && i.estado === 'CONFIRMADA');\n\nconst ocupados = {};\nfor (const ins of confirmadas) ocupados[ins.evento_id] = (ocupados[ins.evento_id] || 0) + 1;\n\n// cupos_disponibles = capacidad - inscripciones CONFIRMADAS (nunca un valor manual)\nconst publico = (e) => {\n  const capacidad = Number(e.capacidad) || 0;\n  const inscritos = ocupados[e.evento_id] || 0;\n  const cupos = Math.max(capacidad - inscritos, 0);\n  return {\n    evento_id: e.evento_id, nombre: e.nombre, categoria: e.categoria, descripcion: e.descripcion,\n    fecha: e.fecha, hora: e.hora, lugar: e.lugar, capacidad, imagen_url: e.imagen_url || '',\n    organizador: e.organizador, estado: e.estado,\n    inscritos_confirmados: inscritos, cupos_disponibles: cupos, lleno: cupos === 0\n  };\n};\nconst orden = (a, b) => (a.fecha + ' ' + a.hora).localeCompare(b.fecha + ' ' + b.hora);\n\nlet status = 200, body, tipo, count;\n\nif (entrada.accion === 'listado' || entrada.accion === 'filtro') {\n  let lista = eventos;\n  if (entrada.accion === 'filtro') lista = eventos.filter(e => norm(e.categoria) === norm(entrada.categoria));\n  const data = lista.map(publico).sort(orden);\n  tipo = entrada.accion === 'listado' ? 'LISTADO' : 'FILTRO';\n  count = data.length;\n  body = { ok: true, data, message: data.length + ' eventos' };\n} else {\n  const evento = eventos.find(e => e.evento_id === entrada.evento_id);\n  tipo = entrada.accion === 'detalle' ? 'DETALLE' : 'DISPONIBILIDAD';\n  if (!evento) {\n    status = 404; count = 0;\n    body = { ok: false, error: 'NO_ENCONTRADO', message: 'El evento no existe o no está disponible' };\n  } else {\n    const e = publico(evento);\n    count = 1;\n    body = entrada.accion === 'detalle'\n      ? { ok: true, data: e, message: 'Evento encontrado' }\n      : { ok: true, data: { evento_id: e.evento_id, capacidad: e.capacidad, inscritos_confirmados: e.inscritos_confirmados, cupos_disponibles: e.cupos_disponibles, lleno: e.lleno }, message: 'Disponibilidad calculada' };\n  }\n}\n\nreturn [{ json: {\n  status, body,\n  log: {\n    consulta_id: 'CON-' + Date.now() + '-' + Math.floor(Math.random() * 10000),\n    fecha: new Date().toISOString(), tipo,\n    evento_id: entrada.evento_id || '', categoria: entrada.categoria || '',\n    resultado_count: count, visitor_id: entrada.visitor_id, status_http: status\n  }\n} }];\n"
       }
     },
     {
@@ -418,7 +417,7 @@
         208
       ],
       "parameters": {
-        "jsCode": "// Eventos e inscripciones se guardan 30 s en la memoria del workflow: consultas seguidas no vuelven a leer Google Sheets\nconst TTL_MS = 30000;\nconst st = $getWorkflowStaticData('global');\nconst hit = !!(st.catalogo && Date.now() - st.catalogo.t < TTL_MS);\nreturn [{ json: { hit } }];"
+        "jsCode": "// Los eventos cambian poco: se guardan 60 s en la memoria del workflow.\n// Las inscripciones NO se guardan: los cupos tienen que reflejar cada inscripción al instante.\nconst TTL_EVENTOS_MS = 60000;\nconst st = $getWorkflowStaticData('global');\nconst hit = !!(st.eventos && Date.now() - st.eventos.t < TTL_EVENTOS_MS);\nreturn [{ json: { hit } }];"
       }
     },
     {
@@ -589,7 +588,7 @@
       "main": [
         [
           {
-            "node": "Calcular catalogo",
+            "node": "Leer inscripciones",
             "type": "main",
             "index": 0
           }
@@ -616,5 +615,5 @@
   "tags": [],
   "id": "gDJi2c9EhJd1WlLk",
   "active": true,
-  "versionId": "492acf20-79f5-41cc-a430-ecbbeafd5276"
+  "versionId": "60ec3720-9b23-4123-9645-af10778409c7"
 }
