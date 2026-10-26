@@ -105,6 +105,9 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         660,
         300
@@ -144,6 +147,9 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         880,
         300
@@ -183,6 +189,9 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         1100,
         300
@@ -433,6 +442,9 @@
       "name": "Registrar notificacion",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         3080,
         400
@@ -810,5 +822,5 @@
   "tags": [],
   "id": "nDQbWOBIKSxuv2Wc",
   "active": true,
-  "versionId": "68c0d001-b7d8-48c9-a0aa-f37f115c7715"
+  "versionId": "b43b5dcb-b63c-45d9-b2b7-8b1159a2c262"
 }

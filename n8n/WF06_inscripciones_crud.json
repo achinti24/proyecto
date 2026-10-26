@@ -138,6 +138,9 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         880,
         400
@@ -224,6 +227,9 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         1540,
         500
@@ -263,6 +269,9 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         1760,
         500
@@ -303,6 +312,9 @@
       "typeVersion": 4.5,
       "executeOnce": true,
       "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         1980,
         500
@@ -335,6 +347,9 @@
       "typeVersion": 4.5,
       "executeOnce": true,
       "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         2200,
         500
@@ -496,6 +511,9 @@
       "name": "Crear inscripcion",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         3300,
         640
@@ -634,6 +652,9 @@
       "name": "Actualizar inscripcion",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         3300,
         800
@@ -774,6 +795,9 @@
       "name": "Auditoria inscripcion",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 4000,
       "position": [
         3520,
         700
@@ -1321,5 +1345,5 @@
   "tags": [],
   "id": "fwtOHkNFU2woBCXM",
   "active": true,
-  "versionId": "466743df-eb9d-42d6-acb3-54f2dbaee286"
+  "versionId": "85eba85b-0808-4abb-931b-c75a40e71dfc"
 }

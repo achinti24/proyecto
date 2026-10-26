@@ -108,7 +108,7 @@ Todas las llamadas son `POST` con cuerpo JSON a `{VITE_N8N_BASE_URL}/webhook/{re
   - error → `{ "ok": false, "error": "CODIGO", "message": "…" }` con el código HTTP correspondiente (400, 401, 403, 404, 409).
 - El header `ngrok-skip-browser-warning` evita la página intermedia de ngrok. CORS está habilitado en cada webhook (`allowedOrigins: *`).
 - La interfaz maneja **loading** (esqueletos, spinners), **éxito** (toasts) y **error** (cajas de error con reintento).
-- **Rendimiento:** WF05 guarda los eventos 60 s en la memoria del workflow (`$getWorkflowStaticData`) pero lee las inscripciones en cada consulta, para que los cupos estén siempre al día, y responde antes de registrar la consulta; el frontend guarda el último catálogo en `localStorage`, lo muestra al instante y lo refresca en segundo plano, filtra por categoría sin esperar y abre la conexión con n8n por adelantado (`preconnect`).
+- **Rendimiento:** WF05 guarda en la memoria del workflow (`$getWorkflowStaticData`) los eventos 60 s y las inscripciones solo 10 s, para no superar la cuota de Google Sheets (60 lecturas por minuto) sin que los cupos se desactualicen, y responde antes de registrar la consulta. Los nodos de Google Sheets de WF05, WF06 y WF09 reintentan con pausa si Google frena las peticiones; el frontend guarda el último catálogo en `localStorage`, lo muestra al instante y lo refresca en segundo plano, filtra por categoría sin esperar y abre la conexión con n8n por adelantado (`preconnect`).
 
 ## 6. Endpoints
 
