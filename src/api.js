@@ -86,6 +86,26 @@ export const api = {
   cancelarInscripcion: (inscripcion_id) => call('inscripciones', { accion: 'cancelar', inscripcion_id }, { auth: true }),
 };
 
+// WF11 — Check-in digital. Devuelve el cuerpo también en rechazos y duplicados (409, 404, 422…),
+// porque la portería necesita ver el motivo, no solo que falló.
+export async function registrarCheckin(inscripcion_id, evento_id) {
+  if (!BASE) throw new ApiError('Falta configurar VITE_N8N_BASE_URL', 'CONFIG', 0);
+  let res;
+  try {
+    res = await fetch(`${BASE}/webhook/checkin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+      body: JSON.stringify({ inscripcion_id, evento_id }),
+    });
+  } catch {
+    throw new ApiError('No pudimos contactar al servidor. ¿Está n8n despierto?', 'RED', 0);
+  }
+  let data = null;
+  try { data = await res.json(); } catch { /* respuesta vacía */ }
+  if (!data?.resultado) throw new ApiError(data?.message || `Error ${res.status}`, data?.error || 'ERROR', res.status);
+  return data;
+}
+
 // WF10 — Chat Trigger (protocolo del chat de n8n)
 export async function chat(chatId, texto) {
   if (!CHAT_URL) throw new ApiError('Falta configurar VITE_N8N_CHAT_URL', 'CONFIG', 0);

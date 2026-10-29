@@ -1,5 +1,5 @@
 import './style.css';
-import { api, chat, session, ApiError } from './api.js';
+import { api, chat, session, ApiError, registrarCheckin } from './api.js';
 import { escena, ICONOS_CATEGORIA } from './escena.js';
 
 const TELEGRAM_BOT = import.meta.env.VITE_TELEGRAM_BOT || '';
@@ -141,8 +141,8 @@ function renderNav() {
   const u = session.user;
   nav.innerHTML = u
     ? `<span class="who"><span class="avatar" aria-hidden="true">${inicial(u.nombre)}</span>Hola, ${esc(u.nombre?.split(' ')[0] || '')}</span>
-       <a href="#/">Eventos</a><a href="#/mis-inscripciones">Mis inscripciones</a><a href="#/perfil">Perfil</a><button id="logoutBtn">Salir</button>`
-    : `<a href="#/">Eventos</a><a href="#/login">Entrar</a><a href="#/registro" class="cta">Crear cuenta</a>`;
+       <a href="#/">Eventos</a><a href="#/mis-inscripciones">Mis inscripciones</a><a href="#/perfil">Perfil</a><a href="#/checkin">Check-in</a><button id="logoutBtn">Salir</button>`
+    : `<a href="#/">Eventos</a><a href="#/checkin">Check-in</a><a href="#/login">Entrar</a><a href="#/registro" class="cta">Crear cuenta</a>`;
   const h = location.hash || '#/';
   nav.querySelectorAll('a').forEach((a) => {
     const activo = a.getAttribute('href') === h && !a.classList.contains('cta');
@@ -709,9 +709,95 @@ function renderTelegram(tg, codigo) {
 
 const SELLO = {
   CONFIRMADA: '<span class="stamp ok">Confirmada</span>',
+  ASISTIO: '<span class="stamp ok">Asistió</span>',
   LISTA_ESPERA: '<span class="stamp wait">En espera</span>',
   CANCELADA: '<span class="stamp off">Cancelada</span>',
 };
+
+// ---------------------------------------------------------- check-in en la puerta (WF11)
+const RESULTADO_CHECKIN = {
+  EXITOSO: { clase: 'ok', titulo: 'Ingreso registrado' },
+  DUPLICADO: { clase: 'wait', titulo: 'Este ingreso ya estaba registrado' },
+  RECHAZADO: { clase: 'bad', titulo: 'No puede ingresar' },
+};
+const intentosCheckin = []; // historial de esta pantalla, el más reciente primero
+
+function tarjetaCheckin(r) {
+  const vista = RESULTADO_CHECKIN[r.resultado] || RESULTADO_CHECKIN.RECHAZADO;
+  const d = r.data || {};
+  const fecha = d.fecha_checkin || d.checkin_previo?.fecha_checkin;
+  const filas = [
+    ['Asistente', d.nombre_acreditacion], ['Evento', d.evento_nombre ? `${d.evento_nombre} (${d.evento_id})` : d.evento_id],
+    ['Inscripción', d.inscripcion_id], ['Estado de la inscripción', d.estado_inscripcion],
+    ['Hora del ingreso', fecha ? new Date(fecha).toLocaleString('es-CO', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' }) : ''],
+    ['Registro', d.checkin_previo?.checkin_id || d.checkin_id],
+  ].filter(([, v]) => v);
+  return `<div class="checkin-res ${vista.clase}" role="status">
+    <p class="checkin-titulo">${esc(vista.titulo)}</p>
+    <p>${esc(r.message)}</p>
+    <dl>${filas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+  </div>`;
+}
+
+async function viewCheckin() {
+  let eventos = cache.get() || [];
+  app.innerHTML = `
+    <div class="section-head"><h2>Check-in en la puerta</h2></div>
+    <div class="checkin-grid">
+      <section class="card panel">
+        <p class="hint" style="margin-bottom:1rem">Registra el ingreso de una persona con el código de su inscripción. Solo entran inscripciones CONFIRMADAS, una sola vez; la persona recibe el aviso por Gmail y Telegram.</p>
+        <form class="form" id="fCheckin">
+          <div class="field"><label for="ckEvento">Evento</label>
+            <input id="ckEvento" list="ckEventos" autocomplete="off" required placeholder="EVT-001">
+            <datalist id="ckEventos"></datalist>
+            <p class="hint" id="ckEventoNombre"></p></div>
+          <div class="field"><label for="ckInscripcion">Código de inscripción</label>
+            <input id="ckInscripcion" autocomplete="off" required placeholder="INS-…" spellcheck="false">
+            <p class="hint">Está en «Mis inscripciones» de la persona.</p></div>
+          <button class="btn btn-primary btn-block" id="ckOk">Registrar ingreso</button>
+        </form>
+      </section>
+      <section aria-live="polite">
+        <div id="ckResultado"><div class="empty"><p>El resultado del check-in aparecerá aquí.</p></div></div>
+        <div id="ckHistorial"></div>
+      </section>
+    </div>`;
+  const inputEvento = document.getElementById('ckEvento');
+  const nombreEvento = () => {
+    const ev = eventos.find((e) => e.evento_id === inputEvento.value.trim().toUpperCase());
+    document.getElementById('ckEventoNombre').textContent = ev ? `${ev.nombre} · ${fechaLarga(ev.fecha, ev.hora)}` : '';
+  };
+  const llenarEventos = () => {
+    document.getElementById('ckEventos').innerHTML = eventos.map((e) => `<option value="${esc(e.evento_id)}">${esc(e.nombre)}</option>`).join('');
+    nombreEvento();
+  };
+  llenarEventos();
+  pedirCatalogo().then((r) => { eventos = r; if (document.getElementById('ckEventos')) llenarEventos(); }).catch(() => { /* se escribe a mano */ });
+  inputEvento.addEventListener('input', nombreEvento);
+
+  const pintarHistorial = () => {
+    const h = document.getElementById('ckHistorial');
+    if (!h || intentosCheckin.length < 2) return;
+    h.innerHTML = `<h3 style="margin:1.5rem 0 .5rem">Intentos anteriores</h3><ul class="checkin-hist">${intentosCheckin.slice(1).map((r) =>
+      `<li><span class="status ${(RESULTADO_CHECKIN[r.resultado] || {}).clase}">${esc(r.resultado)}</span> ${esc(r.data?.inscripcion_id || '')} · ${esc(r.message)}</li>`).join('')}</ul>`;
+  };
+  pintarHistorial();
+
+  document.getElementById('fCheckin').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const inscripcion = document.getElementById('ckInscripcion').value.trim();
+    const evento = inputEvento.value.trim().toUpperCase();
+    try {
+      const r = await withLoading(document.getElementById('ckOk'), () => registrarCheckin(inscripcion, evento));
+      intentosCheckin.unshift(r);
+      document.getElementById('ckResultado').innerHTML = tarjetaCheckin(r);
+      pintarHistorial();
+      if (r.resultado === 'EXITOSO') { document.getElementById('ckInscripcion').value = ''; document.getElementById('ckInscripcion').focus(); }
+    } catch (err) {
+      document.getElementById('ckResultado').innerHTML = errorBox(err, false);
+    }
+  });
+}
 
 async function viewMisInscripciones() {
   if (!requireAuth()) return;
@@ -727,7 +813,7 @@ async function viewMisInscripciones() {
       <p>Todavía no tienes inscripciones. Elige un evento de la agenda y reserva tu cupo.</p><a class="btn btn-primary" href="#/">Ver la agenda</a></div>`;
     return;
   }
-  const orden = { CONFIRMADA: 0, LISTA_ESPERA: 1, CANCELADA: 2 };
+  const orden = { CONFIRMADA: 0, ASISTIO: 1, LISTA_ESPERA: 2, CANCELADA: 3 };
   data.sort((a, b) => (orden[a.estado] ?? 3) - (orden[b.estado] ?? 3) || String(a.evento_fecha).localeCompare(String(b.evento_fecha)));
   lista.innerHTML = `<div class="list">${data.map((i) => `
     <article class="ticket mine ${i.estado === 'CANCELADA' ? 'off' : ''}">
@@ -742,12 +828,17 @@ async function viewMisInscripciones() {
           ${i.estado === 'LISTA_ESPERA' && i.orden_espera ? `<span class="soon" style="margin:0">Puesto ${esc(i.orden_espera)} en la lista de espera</span>` : ''}
           ${i.evento_estado && i.evento_estado !== 'PUBLICADO' ? `<span>El evento está ${esc(i.evento_estado.toLowerCase())}</span>` : ''}
         </div>
-        ${i.estado !== 'CANCELADA' ? `<div class="actions">
+        ${i.estado === 'CONFIRMADA' ? `<p class="codigo-ingreso">Código de ingreso: <code>${esc(i.inscripcion_id)}</code>
+          <button class="btn btn-sm btn-ghost" data-copiar="${esc(i.inscripcion_id)}">Copiar</button></p>` : ''}
+        ${i.estado === 'CONFIRMADA' || i.estado === 'LISTA_ESPERA' ? `<div class="actions">
           <button class="btn btn-sm" data-edit="${esc(i.inscripcion_id)}">Editar</button>
           <button class="btn btn-sm btn-danger" data-cancel="${esc(i.inscripcion_id)}">Cancelar</button></div>` : ''}
       </div>
     </article>`).join('')}</div>`;
 
+  lista.querySelectorAll('[data-copiar]').forEach((b) => b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copiar); toast('Código copiado'); } catch { toast('Selecciona el código y cópialo a mano', 'err'); }
+  }));
   lista.querySelectorAll('[data-cancel]').forEach((b) => b.addEventListener('click', async () => {
     if (!await confirmar('¿Cancelar la inscripción?', 'Si tenías cupo confirmado, pasará a la siguiente persona de la lista de espera.', 'Cancelar inscripción', true)) return;
     const inscripcion = data.find((x) => x.inscripcion_id === b.dataset.cancel);
@@ -800,6 +891,7 @@ function router() {
     case 'recuperar': return viewRecuperar();
     case 'perfil': return viewPerfil();
     case 'mis-inscripciones': return viewMisInscripciones();
+    case 'checkin': return viewCheckin();
     default: app.innerHTML = '<div class="empty"><p>Esta página no existe.</p><a class="btn" href="#/">Ver la agenda</a></div>';
   }
 }
