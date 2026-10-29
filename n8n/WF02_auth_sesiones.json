@@ -2,6 +2,14 @@
   "name": "WF02 - Autenticacion y sesiones",
   "nodes": [
     {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "auth",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
       "id": "dafea01c-b1a7-4e6c-878e-18da7ebeb1ce",
       "name": "Webhook",
       "webhookId": "bd9fa478-45ad-4933-b02f-2427bb0ae8f3",
@@ -10,25 +18,9 @@
       "position": [
         0,
         0
-      ],
-      "parameters": {
-        "httpMethod": "POST",
-        "options": {
-          "allowedOrigins": "*"
-        },
-        "path": "auth",
-        "responseMode": "responseNode"
-      }
+      ]
     },
     {
-      "id": "178317f9-a8ae-4541-94cf-7dfcbaab63ea",
-      "name": "Config",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        220,
-        300
-      ],
       "parameters": {
         "assignments": {
           "assignments": [
@@ -48,30 +40,30 @@
         },
         "includeOtherFields": true,
         "options": {}
-      }
+      },
+      "id": "178317f9-a8ae-4541-94cf-7dfcbaab63ea",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        304
+      ]
     },
     {
+      "parameters": {
+        "jsCode": "const fail = (status, code, message) => [{ json: { error: { status, code, message } } }];\n\nconst { body = {}, headers = {} } = $input.first().json;\nconst accion = String(body.accion || '').trim();\nconst auth = headers.authorization || '';\nconst token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\n\nif (!['login', 'logout', 'validar'].includes(accion)) return fail(400, 'VALIDACION', 'Acción no válida');\n\nif (accion === 'login') {\n  const email = String(body.email || '').trim().toLowerCase();\n  const password = String(body.password || '');\n  if (!email || !password) return fail(400, 'VALIDACION', 'Email y contraseña son obligatorios');\n  return [{ json: { accion, email, password } }];\n}\n\nif (!token) return fail(401, 'SESION_INVALIDA', 'Sesión no válida');\nreturn [{ json: { accion, token } }];\n"
+      },
       "id": "0c209f68-28aa-4f6a-a30b-31da9be47f16",
       "name": "Validar entrada",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        440,
-        300
-      ],
-      "parameters": {
-        "jsCode": "const fail = (status, code, message) => [{ json: { error: { status, code, message } } }];\n\nconst { body = {}, headers = {} } = $input.first().json;\nconst accion = String(body.accion || '').trim();\nconst auth = headers.authorization || '';\nconst token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\n\nif (!['login', 'logout', 'validar'].includes(accion)) return fail(400, 'VALIDACION', 'Acción no válida');\n\nif (accion === 'login') {\n  const email = String(body.email || '').trim().toLowerCase();\n  const password = String(body.password || '');\n  if (!email || !password) return fail(400, 'VALIDACION', 'Email y contraseña son obligatorios');\n  return [{ json: { accion, email, password } }];\n}\n\nif (!token) return fail(401, 'SESION_INVALIDA', 'Sesión no válida');\nreturn [{ json: { accion, token } }];\n"
-      }
+        448,
+        304
+      ]
     },
     {
-      "id": "507124f4-56fe-4cdb-8c13-5d3531255b69",
-      "name": "Entrada con error",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        660,
-        300
-      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -95,34 +87,34 @@
           }
         },
         "options": {}
-      }
+      },
+      "id": "507124f4-56fe-4cdb-8c13-5d3531255b69",
+      "name": "Entrada con error",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        304
+      ]
     },
     {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: $json.error.code, message: $json.error.message } }}",
+        "options": {
+          "responseCode": "={{ $json.error.status }}"
+        }
+      },
       "id": "d7e6dd8d-8fbe-4ae2-9245-936c4441390a",
       "name": "Responder error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
         1760,
-        100
-      ],
-      "parameters": {
-        "options": {
-          "responseCode": "={{ $json.error.status }}"
-        },
-        "respondWith": "json",
-        "responseBody": "={{ { ok: false, error: $json.error.code, message: $json.error.message } }}"
-      }
+        112
+      ]
     },
     {
-      "id": "201b6b09-f5ed-4572-afa3-8e98b4e3f635",
-      "name": "Es login",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        880,
-        400
-      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -145,23 +137,27 @@
           }
         },
         "options": {}
-      }
+      },
+      "id": "201b6b09-f5ed-4572-afa3-8e98b4e3f635",
+      "name": "Es login",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        400
+      ]
     },
     {
-      "id": "beace5d6-6e14-4652-9f45-5f6e9225ef49",
-      "name": "Buscar usuario email",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "alwaysOutputData": true,
-      "position": [
-        1100,
-        200
-      ],
       "parameters": {
         "documentId": {
           "__rl": true,
           "mode": "id",
           "value": "={{ $('Config').first().json.EP01_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Usuarios"
         },
         "filtersUI": {
           "values": [
@@ -171,14 +167,17 @@
             }
           ]
         },
-        "operation": "read",
-        "options": {},
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Usuarios"
-        }
+        "options": {}
       },
+      "id": "beace5d6-6e14-4652-9f45-5f6e9225ef49",
+      "name": "Buscar usuario email",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "alwaysOutputData": true,
+      "position": [
+        1104,
+        304
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "h7zkopuCqYl0Axip",
@@ -187,27 +186,19 @@
       }
     },
     {
+      "parameters": {
+        "jsCode": "const fail = (status, code, message) => [{ json: { error: { status, code, message } } }];\n\nconst crypto = require('crypto');\nconst entrada = $('Validar entrada').first().json;\nconst invalidas = () => fail(401, 'CREDENCIALES_INVALIDAS', 'Email o contraseña incorrectos');\n\nconst fila = $input.all().map(i => i.json).find(r => r.email_normalizado === entrada.email);\nif (!fila || !fila.password_salt || !fila.password_hash) return invalidas();\n\nconst calculado = crypto.pbkdf2Sync(entrada.password, String(fila.password_salt), 100000, 64, 'sha512');\nconst guardado = Buffer.from(String(fila.password_hash), 'hex');\nif (guardado.length !== calculado.length || !crypto.timingSafeEqual(calculado, guardado)) return invalidas();\n\nif (fila.estado === 'PENDIENTE') return fail(403, 'CUENTA_NO_VERIFICADA', 'Primero verifica tu email con el código que te enviamos.');\nif (fila.estado !== 'ACTIVO') return fail(403, 'USUARIO_INACTIVO', 'La cuenta está inactiva');\n\nconst ahora = new Date();\nconst expira = new Date(ahora.getTime() + 24 * 60 * 60 * 1000);\n\nreturn [{ json: {\n  sesion: {\n    session_id: 'SES-' + crypto.randomUUID(),\n    usuario_id: fila.usuario_id,\n    session_token: crypto.randomBytes(32).toString('hex'),\n    creada_en: ahora.toISOString(),\n    expira_en: expira.toISOString(),\n    estado: 'ACTIVA',\n    cerrada_en: '',\n    ultima_validacion: ahora.toISOString()\n  },\n  usuario: { usuario_id: fila.usuario_id, nombre: fila.nombre, email: fila.email_normalizado }\n} }];\n"
+      },
       "id": "ccf78f39-b197-46b5-b41d-c372a20c72a0",
       "name": "Verificar credenciales",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1320,
-        200
-      ],
-      "parameters": {
-        "jsCode": "const fail = (status, code, message) => [{ json: { error: { status, code, message } } }];\n\nconst crypto = require('crypto');\nconst entrada = $('Validar entrada').first().json;\nconst invalidas = () => fail(401, 'CREDENCIALES_INVALIDAS', 'Email o contraseña incorrectos');\n\nconst fila = $input.all().map(i => i.json).find(r => r.email_normalizado === entrada.email);\nif (!fila || !fila.password_salt || !fila.password_hash) return invalidas();\n\nconst calculado = crypto.pbkdf2Sync(entrada.password, String(fila.password_salt), 100000, 64, 'sha512');\nconst guardado = Buffer.from(String(fila.password_hash), 'hex');\nif (guardado.length !== calculado.length || !crypto.timingSafeEqual(calculado, guardado)) return invalidas();\n\nif (fila.estado === 'PENDIENTE') return fail(403, 'CUENTA_NO_VERIFICADA', 'Primero verifica tu email con el código que te enviamos.');\nif (fila.estado !== 'ACTIVO') return fail(403, 'USUARIO_INACTIVO', 'La cuenta está inactiva');\n\nconst ahora = new Date();\nconst expira = new Date(ahora.getTime() + 24 * 60 * 60 * 1000);\n\nreturn [{ json: {\n  sesion: {\n    session_id: 'SES-' + crypto.randomUUID(),\n    usuario_id: fila.usuario_id,\n    session_token: crypto.randomBytes(32).toString('hex'),\n    creada_en: ahora.toISOString(),\n    expira_en: expira.toISOString(),\n    estado: 'ACTIVA',\n    cerrada_en: '',\n    ultima_validacion: ahora.toISOString()\n  },\n  usuario: { usuario_id: fila.usuario_id, nombre: fila.nombre, email: fila.email_normalizado }\n} }];\n"
-      }
+        1328,
+        208
+      ]
     },
     {
-      "id": "94c2f450-e93d-434a-a4ad-79d7eb89d453",
-      "name": "Hay error login",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1540,
-        200
-      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -231,18 +222,29 @@
           }
         },
         "options": {}
-      }
+      },
+      "id": "94c2f450-e93d-434a-a4ad-79d7eb89d453",
+      "name": "Hay error login",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1552,
+        208
+      ]
     },
     {
-      "id": "25d9036d-96da-400d-8b3f-3a917d87c299",
-      "name": "Crear sesion",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [
-        1760,
-        300
-      ],
       "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP02_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sesiones"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "matchingColumns": [],
@@ -331,19 +333,16 @@
             "usuario_id": "={{ $json.sesion.usuario_id }}"
           }
         },
-        "documentId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "={{ $('Config').first().json.EP02_ID }}"
-        },
-        "operation": "append",
-        "options": {},
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Sesiones"
-        }
+        "options": {}
       },
+      "id": "25d9036d-96da-400d-8b3f-3a917d87c299",
+      "name": "Crear sesion",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        304
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "h7zkopuCqYl0Axip",
@@ -352,37 +351,33 @@
       }
     },
     {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, data: { session_token: $('Verificar credenciales').first().json.sesion.session_token, expira_en: $('Verificar credenciales').first().json.sesion.expira_en, usuario: $('Verificar credenciales').first().json.usuario }, message: 'Sesión iniciada' } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
       "id": "49d24665-f03b-48a2-ac93-0ea21f2cf782",
       "name": "Responder login",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1980,
-        300
-      ],
-      "parameters": {
-        "options": {
-          "responseCode": 200
-        },
-        "respondWith": "json",
-        "responseBody": "={{ { ok: true, data: { session_token: $('Verificar credenciales').first().json.sesion.session_token, expira_en: $('Verificar credenciales').first().json.sesion.expira_en, usuario: $('Verificar credenciales').first().json.usuario }, message: 'Sesión iniciada' } }}"
-      }
+        1984,
+        304
+      ]
     },
     {
-      "id": "84a2d509-9c44-4936-abc1-e2b97e24ce0f",
-      "name": "Buscar sesion",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "alwaysOutputData": true,
-      "position": [
-        1100,
-        600
-      ],
       "parameters": {
         "documentId": {
           "__rl": true,
           "mode": "id",
           "value": "={{ $('Config').first().json.EP02_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sesiones"
         },
         "filtersUI": {
           "values": [
@@ -392,14 +387,17 @@
             }
           ]
         },
-        "operation": "read",
-        "options": {},
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Sesiones"
-        }
+        "options": {}
       },
+      "id": "84a2d509-9c44-4936-abc1-e2b97e24ce0f",
+      "name": "Buscar sesion",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "alwaysOutputData": true,
+      "position": [
+        1104,
+        608
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "h7zkopuCqYl0Axip",
@@ -408,20 +406,16 @@
       }
     },
     {
-      "id": "2700db8d-8451-4f19-98ff-ce960160a592",
-      "name": "Buscar usuario id",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "alwaysOutputData": true,
-      "position": [
-        1320,
-        600
-      ],
       "parameters": {
         "documentId": {
           "__rl": true,
           "mode": "id",
           "value": "={{ $('Config').first().json.EP01_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Usuarios"
         },
         "filtersUI": {
           "values": [
@@ -431,14 +425,17 @@
             }
           ]
         },
-        "operation": "read",
-        "options": {},
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Usuarios"
-        }
+        "options": {}
       },
+      "id": "2700db8d-8451-4f19-98ff-ce960160a592",
+      "name": "Buscar usuario id",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "alwaysOutputData": true,
+      "position": [
+        1328,
+        608
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "h7zkopuCqYl0Axip",
@@ -447,27 +444,19 @@
       }
     },
     {
+      "parameters": {
+        "jsCode": "\nconst entrada = $('Validar entrada').first().json;\nconst fail = (status, code, message, update) => [{ json: { error: { status, code, message }, ...(update ? { update } : {}) } }];\n\nconst sesion = $('Buscar sesion').all().map(i => i.json).find(r => r.session_token === entrada.token);\nif (!sesion) return fail(401, 'SESION_INVALIDA', 'Sesión no válida');\nif (sesion.estado !== 'ACTIVA') return fail(401, 'SESION_INVALIDA', 'La sesión está cerrada o expirada');\n\nconst ahora = new Date();\nconst base = {\n  session_id: sesion.session_id, usuario_id: sesion.usuario_id, session_token: sesion.session_token,\n  creada_en: sesion.creada_en, expira_en: sesion.expira_en, estado: sesion.estado,\n  cerrada_en: sesion.cerrada_en, ultima_validacion: sesion.ultima_validacion\n};\n\nif (new Date(sesion.expira_en) <= ahora) {\n  return fail(401, 'SESION_INVALIDA', 'La sesión expiró', { ...base, estado: 'EXPIRADA' });\n}\n\nif (entrada.accion === 'logout') {\n  return [{ json: { update: { ...base, estado: 'CERRADA', cerrada_en: ahora.toISOString() }, respuesta: { cerrada: true }, message: 'Sesión cerrada' } }];\n}\n\nconst usuario = $input.all().map(i => i.json).find(r => r.usuario_id === sesion.usuario_id);\nif (!usuario || usuario.estado !== 'ACTIVO') return fail(403, 'USUARIO_INACTIVO', 'La cuenta está inactiva');\n\nreturn [{ json: {\n  update: { ...base, ultima_validacion: ahora.toISOString() },\n  respuesta: { usuario_id: usuario.usuario_id, nombre: usuario.nombre, email: usuario.email_normalizado, expira_en: sesion.expira_en },\n  message: 'Sesión válida'\n} }];\n"
+      },
       "id": "e42ee9b4-351f-41bf-ad48-edbdbc2733c0",
       "name": "Evaluar sesion",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
-        600
-      ],
-      "parameters": {
-        "jsCode": "\nconst entrada = $('Validar entrada').first().json;\nconst fail = (status, code, message, update) => [{ json: { error: { status, code, message }, ...(update ? { update } : {}) } }];\n\nconst sesion = $('Buscar sesion').all().map(i => i.json).find(r => r.session_token === entrada.token);\nif (!sesion) return fail(401, 'SESION_INVALIDA', 'Sesión no válida');\nif (sesion.estado !== 'ACTIVA') return fail(401, 'SESION_INVALIDA', 'La sesión está cerrada o expirada');\n\nconst ahora = new Date();\nconst base = {\n  session_id: sesion.session_id, usuario_id: sesion.usuario_id, session_token: sesion.session_token,\n  creada_en: sesion.creada_en, expira_en: sesion.expira_en, estado: sesion.estado,\n  cerrada_en: sesion.cerrada_en, ultima_validacion: sesion.ultima_validacion\n};\n\nif (new Date(sesion.expira_en) <= ahora) {\n  return fail(401, 'SESION_INVALIDA', 'La sesión expiró', { ...base, estado: 'EXPIRADA' });\n}\n\nif (entrada.accion === 'logout') {\n  return [{ json: { update: { ...base, estado: 'CERRADA', cerrada_en: ahora.toISOString() }, respuesta: { cerrada: true }, message: 'Sesión cerrada' } }];\n}\n\nconst usuario = $input.all().map(i => i.json).find(r => r.usuario_id === sesion.usuario_id);\nif (!usuario || usuario.estado !== 'ACTIVO') return fail(403, 'USUARIO_INACTIVO', 'La cuenta está inactiva');\n\nreturn [{ json: {\n  update: { ...base, ultima_validacion: ahora.toISOString() },\n  respuesta: { usuario_id: usuario.usuario_id, nombre: usuario.nombre, email: usuario.email_normalizado, expira_en: sesion.expira_en },\n  message: 'Sesión válida'\n} }];\n"
-      }
+        1552,
+        608
+      ]
     },
     {
-      "id": "4dfdd4df-2d9c-4c8a-a937-f71bcf8c9a1f",
-      "name": "Hay cambios en sesion",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1760,
-        600
-      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -491,18 +480,29 @@
           }
         },
         "options": {}
-      }
+      },
+      "id": "4dfdd4df-2d9c-4c8a-a937-f71bcf8c9a1f",
+      "name": "Hay cambios en sesion",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        608
+      ]
     },
     {
-      "id": "1475d692-3f3d-4cad-880a-66b1aae29a6a",
-      "name": "Actualizar sesion",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [
-        1980,
-        520
-      ],
       "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP02_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sesiones"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "matchingColumns": [
@@ -593,19 +593,16 @@
             "usuario_id": "={{ $json.update.usuario_id }}"
           }
         },
-        "documentId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "={{ $('Config').first().json.EP02_ID }}"
-        },
-        "operation": "update",
-        "options": {},
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Sesiones"
-        }
+        "options": {}
       },
+      "id": "1475d692-3f3d-4cad-880a-66b1aae29a6a",
+      "name": "Actualizar sesion",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1984,
+        528
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "h7zkopuCqYl0Axip",
@@ -614,21 +611,21 @@
       }
     },
     {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Evaluar sesion').first().json.error ? { ok: false, error: $('Evaluar sesion').first().json.error.code, message: $('Evaluar sesion').first().json.error.message } : { ok: true, data: $('Evaluar sesion').first().json.respuesta, message: $('Evaluar sesion').first().json.message } }}",
+        "options": {
+          "responseCode": "={{ $('Evaluar sesion').first().json.error ? $('Evaluar sesion').first().json.error.status : 200 }}"
+        }
+      },
       "id": "68c0c1fd-db57-4ed2-a22c-807b50e56d1c",
       "name": "Responder sesion",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2200,
-        600
-      ],
-      "parameters": {
-        "options": {
-          "responseCode": "={{ $('Evaluar sesion').first().json.error ? $('Evaluar sesion').first().json.error.status : 200 }}"
-        },
-        "respondWith": "json",
-        "responseBody": "={{ $('Evaluar sesion').first().json.error ? { ok: false, error: $('Evaluar sesion').first().json.error.code, message: $('Evaluar sesion').first().json.error.message } : { ok: true, data: $('Evaluar sesion').first().json.respuesta, message: $('Evaluar sesion').first().json.message } }}"
-      }
+        2208,
+        608
+      ]
     }
   ],
   "connections": {
@@ -817,9 +814,10 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "availableInMCP": true
+    "availableInMCP": true,
+    "binaryMode": "separate"
   },
-  "pinData": null,
+  "pinData": {},
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp"
@@ -827,5 +825,5 @@
   "tags": [],
   "id": "jmD0VT5N9ZRnAQNA",
   "active": true,
-  "versionId": "bc7091fb-d076-4e21-b8a2-d8e320bbfd37"
+  "versionId": "a3fe63c5-b66c-4d53-b541-d7a81429e91c"
 }

@@ -56,6 +56,9 @@ ESTRUCTURA = {
         "Conversaciones": ["conversation_id", "usuario_id", "visitor_id", "fecha_inicio", "fecha_ultima_interaccion", "estado"],
         "Mensajes": ["message_id", "conversation_id", "usuario_id", "visitor_id", "rol", "mensaje", "timestamp"],
     },
+    "EP11_Checkin": {
+        "Checkins": ["checkin_id", "inscripcion_id", "evento_id", "usuario_id", "fecha_checkin", "resultado", "detalle"],
+    },
 }
 
 

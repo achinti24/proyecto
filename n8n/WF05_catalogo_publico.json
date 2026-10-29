@@ -13,11 +13,11 @@
       ],
       "parameters": {
         "httpMethod": "POST",
+        "path": "catalogo",
+        "responseMode": "responseNode",
         "options": {
           "allowedOrigins": "*"
-        },
-        "path": "catalogo",
-        "responseMode": "responseNode"
+        }
       }
     },
     {
@@ -26,8 +26,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        220,
-        300
+        224,
+        304
       ],
       "parameters": {
         "assignments": {
@@ -62,8 +62,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        440,
-        300
+        448,
+        304
       ],
       "parameters": {
         "jsCode": "const fail = (status, code, message) => [{ json: { error: { status, code, message } } }];\n\nconst { body = {} } = $input.first().json;\nconst accion = String(body.accion || '').trim();\nconst visitor_id = String(body.visitor_id || 'anonimo').trim().slice(0, 80);\nconst evento_id = String(body.evento_id || '').trim();\nconst categoria = String(body.categoria || '').trim();\n\nif (!['listado', 'detalle', 'filtro', 'disponibilidad'].includes(accion)) return fail(400, 'VALIDACION', 'Acción no válida');\nif ((accion === 'detalle' || accion === 'disponibilidad') && !evento_id) return fail(400, 'VALIDACION', 'Falta evento_id');\nif (accion === 'filtro' && !categoria) return fail(400, 'VALIDACION', 'Falta la categoría');\n\nreturn [{ json: { accion, visitor_id, evento_id, categoria } }];\n"
@@ -75,8 +75,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        660,
-        300
+        672,
+        304
       ],
       "parameters": {
         "conditions": {
@@ -109,15 +109,15 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        880,
-        120
+        864,
+        80
       ],
       "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: $json.error.code, message: $json.error.message } }}",
         "options": {
           "responseCode": "={{ $json.error.status }}"
-        },
-        "respondWith": "json",
-        "responseBody": "={{ { ok: false, error: $json.error.code, message: $json.error.message } }}"
+        }
       }
     },
     {
@@ -139,13 +139,12 @@
           "mode": "id",
           "value": "={{ $('Config').first().json.EP04_ID }}"
         },
-        "operation": "read",
-        "options": {},
         "sheetName": {
           "__rl": true,
           "mode": "name",
           "value": "Eventos"
-        }
+        },
+        "options": {}
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -161,12 +160,17 @@
       "typeVersion": 2.2,
       "alwaysOutputData": true,
       "position": [
-        1100,
+        1104,
         400
       ],
       "parameters": {
         "conditions": {
-          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
           "conditions": [
             {
               "id": "c97ee5d6-ffa3-4a29-b188-26e7b998ea5a",
@@ -178,12 +182,7 @@
               "rightValue": "PUBLICADO"
             }
           ],
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          }
+          "combinator": "and"
         },
         "options": {}
       }
@@ -199,7 +198,7 @@
       "maxTries": 3,
       "waitBetweenTries": 4000,
       "position": [
-        1320,
+        1328,
         400
       ],
       "parameters": {
@@ -208,13 +207,12 @@
           "mode": "id",
           "value": "={{ $('Config').first().json.EP06_ID }}"
         },
-        "operation": "read",
-        "options": {},
         "sheetName": {
           "__rl": true,
           "mode": "name",
           "value": "Inscripciones"
-        }
+        },
+        "options": {}
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -230,7 +228,7 @@
       "typeVersion": 2.2,
       "alwaysOutputData": true,
       "position": [
-        1540,
+        1552,
         400
       ],
       "parameters": {
@@ -239,12 +237,13 @@
           "conditions": [
             {
               "id": "3988d627-bd82-4c0f-9476-e89bdc559d92",
-              "leftValue": "={{ $json.estado }}",
+              "leftValue": "={{ ['CONFIRMADA', 'ASISTIO'].includes($json.estado) }}",
+              "rightValue": "",
               "operator": {
-                "operation": "equals",
-                "type": "string"
-              },
-              "rightValue": "CONFIRMADA"
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "options": {
@@ -267,7 +266,7 @@
         400
       ],
       "parameters": {
-        "jsCode": "const entrada = $('Validar entrada').first().json;\nconst norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();\n\n// Eventos publicables (ya filtrados) e inscripciones CONFIRMADAS (ya filtradas)\nconst st = $getWorkflowStaticData('global');\nlet eventos, confirmadas;\nif ($('Leer cache').first().json.hit) {\n  eventos = st.eventos.lista;\n  confirmadas = st.confirmadas.lista;\n} else {\n  eventos = $('Filtrar publicados').all().map(i => i.json).filter(e => e.evento_id);\n  confirmadas = $('Filtrar confirmadas').all().map(i => i.json).filter(i => i.evento_id && i.estado === 'CONFIRMADA')\n    .map(i => ({ evento_id: i.evento_id, estado: i.estado }));\n  const t = Date.now();\n  st.eventos = { t, lista: eventos };\n  st.confirmadas = { t, lista: confirmadas };\n}\n\nconst ocupados = {};\nfor (const ins of confirmadas) ocupados[ins.evento_id] = (ocupados[ins.evento_id] || 0) + 1;\n\n// cupos_disponibles = capacidad - inscripciones CONFIRMADAS (nunca un valor manual)\nconst publico = (e) => {\n  const capacidad = Number(e.capacidad) || 0;\n  const inscritos = ocupados[e.evento_id] || 0;\n  const cupos = Math.max(capacidad - inscritos, 0);\n  return {\n    evento_id: e.evento_id, nombre: e.nombre, categoria: e.categoria, descripcion: e.descripcion,\n    fecha: e.fecha, hora: e.hora, lugar: e.lugar, capacidad, imagen_url: e.imagen_url || '',\n    organizador: e.organizador, estado: e.estado,\n    inscritos_confirmados: inscritos, cupos_disponibles: cupos, lleno: cupos === 0\n  };\n};\nconst orden = (a, b) => (a.fecha + ' ' + a.hora).localeCompare(b.fecha + ' ' + b.hora);\n\nlet status = 200, body, tipo, count;\n\nif (entrada.accion === 'listado' || entrada.accion === 'filtro') {\n  let lista = eventos;\n  if (entrada.accion === 'filtro') lista = eventos.filter(e => norm(e.categoria) === norm(entrada.categoria));\n  const data = lista.map(publico).sort(orden);\n  tipo = entrada.accion === 'listado' ? 'LISTADO' : 'FILTRO';\n  count = data.length;\n  body = { ok: true, data, message: data.length + ' eventos' };\n} else {\n  const evento = eventos.find(e => e.evento_id === entrada.evento_id);\n  tipo = entrada.accion === 'detalle' ? 'DETALLE' : 'DISPONIBILIDAD';\n  if (!evento) {\n    status = 404; count = 0;\n    body = { ok: false, error: 'NO_ENCONTRADO', message: 'El evento no existe o no está disponible' };\n  } else {\n    const e = publico(evento);\n    count = 1;\n    body = entrada.accion === 'detalle'\n      ? { ok: true, data: e, message: 'Evento encontrado' }\n      : { ok: true, data: { evento_id: e.evento_id, capacidad: e.capacidad, inscritos_confirmados: e.inscritos_confirmados, cupos_disponibles: e.cupos_disponibles, lleno: e.lleno }, message: 'Disponibilidad calculada' };\n  }\n}\n\nreturn [{ json: {\n  status, body,\n  log: {\n    consulta_id: 'CON-' + Date.now() + '-' + Math.floor(Math.random() * 10000),\n    fecha: new Date().toISOString(), tipo,\n    evento_id: entrada.evento_id || '', categoria: entrada.categoria || '',\n    resultado_count: count, visitor_id: entrada.visitor_id, status_http: status\n  }\n} }];\n"
+        "jsCode": "const entrada = $('Validar entrada').first().json;\nconst norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();\n\n// Eventos publicables (ya filtrados) e inscripciones CONFIRMADAS (ya filtradas)\nconst st = $getWorkflowStaticData('global');\nlet eventos, confirmadas;\nif ($('Leer cache').first().json.hit) {\n  eventos = st.eventos.lista;\n  confirmadas = st.confirmadas.lista;\n} else {\n  eventos = $('Filtrar publicados').all().map(i => i.json).filter(e => e.evento_id);\n  confirmadas = $('Filtrar confirmadas').all().map(i => i.json).filter(i => i.evento_id && (i.estado === 'CONFIRMADA' || i.estado === 'ASISTIO'))\n    .map(i => ({ evento_id: i.evento_id, estado: i.estado }));\n  const t = Date.now();\n  st.eventos = { t, lista: eventos };\n  st.confirmadas = { t, lista: confirmadas };\n}\n\nconst ocupados = {};\nfor (const ins of confirmadas) ocupados[ins.evento_id] = (ocupados[ins.evento_id] || 0) + 1;\n\n// cupos_disponibles = capacidad - inscripciones CONFIRMADAS (nunca un valor manual)\nconst publico = (e) => {\n  const capacidad = Number(e.capacidad) || 0;\n  const inscritos = ocupados[e.evento_id] || 0;\n  const cupos = Math.max(capacidad - inscritos, 0);\n  return {\n    evento_id: e.evento_id, nombre: e.nombre, categoria: e.categoria, descripcion: e.descripcion,\n    fecha: e.fecha, hora: e.hora, lugar: e.lugar, capacidad, imagen_url: e.imagen_url || '',\n    organizador: e.organizador, estado: e.estado,\n    inscritos_confirmados: inscritos, cupos_disponibles: cupos, lleno: cupos === 0\n  };\n};\nconst orden = (a, b) => (a.fecha + ' ' + a.hora).localeCompare(b.fecha + ' ' + b.hora);\n\nlet status = 200, body, tipo, count;\n\nif (entrada.accion === 'listado' || entrada.accion === 'filtro') {\n  let lista = eventos;\n  if (entrada.accion === 'filtro') lista = eventos.filter(e => norm(e.categoria) === norm(entrada.categoria));\n  const data = lista.map(publico).sort(orden);\n  tipo = entrada.accion === 'listado' ? 'LISTADO' : 'FILTRO';\n  count = data.length;\n  body = { ok: true, data, message: data.length + ' eventos' };\n} else {\n  const evento = eventos.find(e => e.evento_id === entrada.evento_id);\n  tipo = entrada.accion === 'detalle' ? 'DETALLE' : 'DISPONIBILIDAD';\n  if (!evento) {\n    status = 404; count = 0;\n    body = { ok: false, error: 'NO_ENCONTRADO', message: 'El evento no existe o no está disponible' };\n  } else {\n    const e = publico(evento);\n    count = 1;\n    body = entrada.accion === 'detalle'\n      ? { ok: true, data: e, message: 'Evento encontrado' }\n      : { ok: true, data: { evento_id: e.evento_id, capacidad: e.capacidad, inscritos_confirmados: e.inscritos_confirmados, cupos_disponibles: e.cupos_disponibles, lleno: e.lleno }, message: 'Disponibilidad calculada' };\n  }\n}\n\nreturn [{ json: {\n  status, body,\n  log: {\n    consulta_id: 'CON-' + Date.now() + '-' + Math.floor(Math.random() * 10000),\n    fecha: new Date().toISOString(), tipo,\n    evento_id: entrada.evento_id || '', categoria: entrada.categoria || '',\n    resultado_count: count, visitor_id: entrada.visitor_id, status_http: status\n  }\n} }];\n"
       }
     },
     {
@@ -280,10 +279,21 @@
       "maxTries": 3,
       "waitBetweenTries": 4000,
       "position": [
-        1980,
+        1984,
         400
       ],
       "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.EP05_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Consultas_Catalogo"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "matchingColumns": [],
@@ -372,18 +382,7 @@
             "visitor_id": "={{ $('Calcular catalogo').first().json.log.visitor_id }}"
           }
         },
-        "documentId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "={{ $('Config').first().json.EP05_ID }}"
-        },
-        "operation": "append",
-        "options": {},
-        "sheetName": {
-          "__rl": true,
-          "mode": "name",
-          "value": "Consultas_Catalogo"
-        }
+        "options": {}
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -398,15 +397,15 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2200,
+        2208,
         400
       ],
       "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Calcular catalogo').first().json.body }}",
         "options": {
           "responseCode": "={{ $('Calcular catalogo').first().json.status }}"
-        },
-        "respondWith": "json",
-        "responseBody": "={{ $('Calcular catalogo').first().json.body }}"
+        }
       }
     },
     {
@@ -608,9 +607,10 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "availableInMCP": true
+    "availableInMCP": true,
+    "binaryMode": "separate"
   },
-  "pinData": null,
+  "pinData": {},
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp"
@@ -618,5 +618,5 @@
   "tags": [],
   "id": "gDJi2c9EhJd1WlLk",
   "active": true,
-  "versionId": "d9c0b4b1-5467-4c42-8578-acee2ca382fb"
+  "versionId": "4c547833-dba1-4d90-b550-31e654a05bae"
 }

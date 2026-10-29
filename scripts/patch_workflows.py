@@ -35,7 +35,7 @@ EXPORT_NAMES = {
     "WF01": "WF01_usuarios_crud.json", "WF02": "WF02_auth_sesiones.json", "WF03": "WF03_vinculacion_telegram.json",
     "WF04": "WF04_eventos_crud.json", "WF05": "WF05_catalogo_publico.json", "WF06": "WF06_inscripciones_crud.json",
     "WF07": "WF07_reasignacion_lista_espera.json", "WF08": "WF08_recordatorios.json", "WF09": "WF09_notificaciones.json",
-    "WF10": "WF10_eventpass_assistant.json",
+    "WF10": "WF10_eventpass_assistant.json", "WF11": "WF11_checkin_digital.json",
 }
 
 CATEGORIAS = ["Cultura", "Tecnología", "Educación", "Comunidad", "Deportes", "Networking", "Emprendimiento"]
