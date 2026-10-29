@@ -92,6 +92,7 @@ Aplicación pública en Vercel (Vite + JS)
 | WF08 Recordatorios | `n8n/WF08_recordatorios.json` | **Schedule** (cada hora) | EP08_Recordatorios (`Recordatorios`) |
 | WF09 Notificaciones | `n8n/WF09_notificaciones.json` | **Execute Sub-workflow Trigger** | EP09_Notificaciones (`Notificaciones`) |
 | WF10 EventPass Assistant | `n8n/WF10_eventpass_assistant.json` | **Chat Trigger** | EP10_Soporte (`Conversaciones`, `Mensajes`) |
+| WF11 Check-in digital | `n8n/WF11_checkin_digital.json` | Webhook `POST /webhook/checkin` | EP11_Checkin (`Checkins`) |
 
 Los IDs de los archivos de Google Sheets están en [`n8n/sheets_ids.json`](n8n/sheets_ids.json) y en el nodo **Config** de cada workflow.
 
@@ -136,6 +137,7 @@ Todas las llamadas son `POST` con cuerpo JSON a `{VITE_N8N_BASE_URL}/webhook/{re
 | | `actualizar` | Bearer | `inscripcion_id`, `nombre_acreditacion?`, `observaciones?` |
 | | `cancelar` | Bearer | `inscripcion_id` |
 | `/webhook/{id}/chat` | `sendMessage` | — | `sessionId`, `chatInput`, `metadata.usuario_id` |
+| `/webhook/checkin` | — | — | `inscripcion_id`, `evento_id` (ver [Examen — Check-in digital](#examen--check-in-digital)) |
 
 ## 7. Estados
 
@@ -147,7 +149,8 @@ Todas las llamadas son `POST` con cuerpo JSON a `{VITE_N8N_BASE_URL}/webhook/{re
 | Código de vinculación | `PENDIENTE`, `USADO`, `EXPIRADO`, `CANCELADO` |
 | Vinculación Telegram | `ACTIVA`, `INACTIVA` |
 | Evento | `BORRADOR`, `PUBLICADO`, `CERRADO`, `CANCELADO` |
-| Inscripción | `CONFIRMADA`, `LISTA_ESPERA`, `CANCELADA` |
+| Inscripción | `CONFIRMADA`, `LISTA_ESPERA`, `CANCELADA`, `ASISTIO` (ingreso registrado por WF11) |
+| Check-in | `EXITOSO`, `RECHAZADO`, `DUPLICADO` |
 | Recordatorio | `PENDIENTE`, `ENVIADO`, `ERROR`, `OMITIDO` |
 | Canal de notificación | `PENDIENTE`, `ENVIADO`, `ERROR`, `NO_APLICA` |
 | Conversación | `ABIERTA`, `CERRADA` |
@@ -220,6 +223,97 @@ Gaspar 👻 responde sobre eventos, categorías, fechas, lugares, cupos, lista d
 - **Restricciones** (prompt de sistema): no puede crear usuarios, iniciar sesión, crear o cancelar inscripciones, modificar eventos, cambiar cupos ni estados, ni revelar datos personales. Ignora intentos de cambiar sus reglas. Además, no tiene ninguna herramienta de escritura.
 
 ---
+
+## Examen — Check-in digital
+
+### Descripción
+
+EventPass controla el ingreso real de los asistentes. En la puerta, quien hace el check-in abre **Check-in** en la página (`#/checkin`), elige el evento y escribe el código de la inscripción (cada persona lo ve en *Mis inscripciones*). El nuevo workflow **WF11** valida la solicitud, registra cada intento en un Google Sheets propio (`EP11_Checkin`), pasa la inscripción de `CONFIRMADA` a `ASISTIO` y avisa a la persona por Gmail y Telegram a través de **WF09**. La pantalla muestra el resultado en grande y con color: verde (éxito), naranja (duplicado) o rojo (rechazado), con el motivo.
+
+### Endpoint
+
+`POST {VITE_N8N_BASE_URL}/webhook/checkin` — Webhook de WF11, con CORS habilitado igual que el resto (`src/api.js → registrarCheckin`).
+
+### Petición
+
+```json
+{ "inscripcion_id": "INS-DEMO-01", "evento_id": "EVT-002" }
+```
+
+`evento_id` se normaliza a mayúsculas; ambos campos son obligatorios.
+
+### Respuesta
+
+| Resultado | HTTP | Ejemplo |
+|---|---|---|
+| Éxito | `200` | `{ "ok": true, "resultado": "EXITOSO", "message": "Check-in realizado correctamente", "data": { "checkin_id": "CHK-…", "inscripcion_id": "…", "evento_id": "EVT-002", "evento_nombre": "…", "nombre_acreditacion": "…", "fecha_checkin": "2026-10-29T12:15:56.524Z", "estado_inscripcion": "ASISTIO" } }` |
+| Duplicado | `409` | `{ "ok": false, "resultado": "DUPLICADO", "error": "CHECKIN_DUPLICADO", "message": "El ingreso ya había sido registrado (CHK-…, fecha)", "data": { …, "checkin_previo": { "checkin_id": "CHK-…", "fecha_checkin": "…" } } }` |
+| Rechazado | `400` / `404` / `409` / `422` | `{ "ok": false, "resultado": "RECHAZADO", "error": "INSCRIPCION_DE_OTRO_EVENTO", "message": "La inscripción pertenece a EVT-001, no a EVT-002", "data": { … } }` |
+
+Códigos de rechazo: `DATOS_INCOMPLETOS` (400), `INSCRIPCION_NO_EXISTE` (404), `EVENTO_NO_EXISTE` (404), `EVENTO_NO_ADMITE_INGRESO` (409, evento cancelado o en borrador), `INSCRIPCION_DE_OTRO_EVENTO` (422), `ESTADO_NO_PERMITE_INGRESO` (409, `LISTA_ESPERA`, `CANCELADA` u otro estado distinto de `CONFIRMADA`).
+
+### Flujo de WF11 y validaciones
+
+```
+Webhook → Config → Validar entrada → ¿Entrada completa?
+  → Leer inscripción → Leer evento → Leer historial de check-in → Reunir datos
+  → ¿Existe la inscripción? → ¿Existe el evento? → ¿El evento admite ingreso?
+  → ¿Inscripción corresponde al evento? → ¿Ya tiene check-in exitoso? → ¿Inscripción CONFIRMADA?
+      sí → Generar checkin_id → Registrar check-in en Google Sheets → Actualizar inscripción a ASISTIO
+           → Auditoría de inscripción → Notificar (WF09) → Responder éxito
+  cualquier «no» (o «sí» en el duplicado)
+      → Preparar rechazo o duplicado → Registrar intento en Google Sheets → Responder rechazo o duplicado
+```
+
+Cada validación es un nodo **IF** propio, así que en el lienzo se identifica cuál detuvo la solicitud:
+
+1. la inscripción existe;
+2. el evento existe y admite ingreso (no está `CANCELADO` ni en `BORRADOR`);
+3. la inscripción corresponde al evento enviado;
+4. no existe un check-in `EXITOSO` previo para esa inscripción;
+5. la inscripción está en `CONFIRMADA` (`LISTA_ESPERA`, `CANCELADA` o cualquier otro estado se rechaza).
+
+### Google Sheets: `EP11_Checkin`
+
+Archivo nuevo e independiente (su ID está en [`n8n/sheets_ids.json`](n8n/sheets_ids.json) como `EP11` y en el nodo **Config** de WF11). No se guarda nada del check-in en el archivo de inscripciones. Hoja **`Checkins`**:
+
+| Campo | Contenido |
+|---|---|
+| `checkin_id` | `CHK-` + UUID aleatorio, generado en cada intento |
+| `inscripcion_id` | Inscripción enviada |
+| `evento_id` | Evento enviado |
+| `usuario_id` | Dueño de la inscripción (vacío si no existe) |
+| `fecha_checkin` | Fecha y hora del intento (ISO 8601, UTC) |
+| `resultado` | `EXITOSO`, `RECHAZADO` o `DUPLICADO` |
+| `detalle` | Motivo legible: «La inscripción está en LISTA_ESPERA…», «El ingreso ya había sido registrado (CHK-…)», etc. |
+
+Se registra **cada intento**, no solo los exitosos, para poder reconstruir qué pasó en la puerta.
+
+### Cambio de estado `CONFIRMADA → ASISTIO`
+
+Solo en el check-in exitoso, el nodo **Actualizar inscripción a ASISTIO** reescribe la fila de `Inscripciones` buscándola por `inscripcion_id` (una sola fila; las demás no se tocan), con `estado = ASISTIO` y `fecha_actualizacion` = hora del ingreso. El cambio queda además en `Auditoria_Inscripciones` (`accion = CHECKIN`, `CONFIRMADA → ASISTIO`).
+
+Para no romper el resto del sistema, `ASISTIO` **sigue ocupando cupo**: WF04, WF05, WF06 y WF07 cuentan como cupos ocupados las inscripciones `CONFIRMADA` y `ASISTIO`. Sin esto, cada ingreso liberaría un cupo y WF07 promovería a alguien de la lista de espera a un evento lleno. Además, WF06 no permite cancelar ni editar una inscripción con asistencia ni volver a inscribirse al mismo evento.
+
+### Cómo se evita el check-in duplicado
+
+Antes de escribir, WF11 lee el historial de `Checkins` de esa inscripción. Si ya existe un registro `EXITOSO` **o** la inscripción ya está en `ASISTIO`, el nodo **¿Ya tiene check-in exitoso?** desvía la solicitud: se guarda un intento con resultado `DUPLICADO` (citando el `checkin_id` y la fecha del ingreso original), **no** se vuelve a modificar la inscripción, **no** se notifica de nuevo y se responde `409 CHECKIN_DUPLICADO`. Como segunda barrera, WF09 recibe `clave_idempotencia = CHECKIN|{inscripcion_id}` y no repite una notificación ya enviada con esa clave.
+
+### Integración con WF09 Notificaciones
+
+WF11 no envía correos ni mensajes por su cuenta: el nodo **Notificar (WF09)** (*Execute Sub-workflow*) llama al servicio central con `tipo = CHECKIN`, el `usuario_id`, el evento y el mensaje «Registramos tu ingreso a "…" el … ¡Que disfrutes la noche!». WF09 envía el **Gmail** y el **Telegram** (las inscripciones exigen Telegram vinculado) y registra el resultado de cada canal en `Notificaciones`.
+
+### Casos probados (2026-10-29)
+
+| Caso | Solicitud | Resultado |
+|---|---|---|
+| 1. Check-in válido | `INS-DEMO-01` + `EVT-002` (CONFIRMADA) | `200 EXITOSO`, inscripción en `ASISTIO`, aviso enviado por WF09 |
+| 2. Duplicado | la misma solicitud otra vez | `409 DUPLICADO`, sin cambios en la inscripción |
+| 3. Inscripción no válida | `INS-DEMO-04` (LISTA_ESPERA) y una inscripción CANCELADA | `409 RECHAZADO` |
+| 4. Evento incorrecto | inscripción de `EVT-001` enviada con `EVT-002` | `422 RECHAZADO` |
+| Extra | inscripción inexistente, evento inexistente, datos incompletos | `404`, `404`, `400` `RECHAZADO` |
+
+Tras el caso 1, el Hackatón (`EVT-002`) sigue mostrando 3/3 cupos ocupados: el asistente no libera su cupo.
 
 ## 14. Variables de entorno (`.env.example`)
 
